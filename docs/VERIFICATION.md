@@ -26,6 +26,7 @@
 | 最终交付进程 | 补齐“原生目录选择后媒体路由也读取插件状态”的 Host 修复后，再次完整退出并打开 DSH Desktop，端口变为 `63506`，默认山田夜景与相册入口均正常。boot graph 的相册 rev 为 `95d4ee14e033`、山田 rev 为 `282dd386d329`；实际服务 client bundle 与仓库 SHA-256 分别同为 `ffd852498891c66b9cdd7f699a7842ae329f81b11ad10713685434d7bbe8130c`、`dcad89e054d9c26c7b6f09df60e38db997243850dcd096be9712e8058d426020`。 |
 | PNG/JPG 文件选择器 | `dsh-photo-album@0.2.1` 在真实 DSH Desktop 中新增顶部“选择 PNG/JPG 设为背景…”按钮。macOS Finder 文件面板直接选中 `sample-1.png` 后即时显示蓝色背景；随后直接选中 `sample-2.jpg` 即时显示粉色背景，相册同时保留两张受管图片且 JPG 标为“当前背景”。证据图：`docs/verification/album-png-jpg-picker.jpeg`。 |
 | PNG/JPG 路由与冷启动 | 直接选择的文件复制到实际有效 `DSH_HOME/storages/dsh-photo-album/photos/`。Desktop 端口 `56518` 的媒体响应分别为 `image/png`（196,419 bytes）和 `image/jpeg`（51,589 bytes）；完整退出重开后端口变为 `57410`，JPG 粉色背景在打开相册前自动恢复。随后点击“恢复默认背景”，保留本地图库但清除背景选择；补齐空文件、隐藏文件名及大写扩展名防护并再次构建、重开后最终端口为 `58572`，保持默认夜景。最终 boot graph 相册 rev 为 `cda954a17aaa`，服务 bundle 与仓库 SHA-256 同为 `65f3e9e6178aa4db63a709490eb6b41d178e943406e26a467aab5705c46b5660`。 |
+| README 相册示例图 | `docs/verification/album-background-user-screenshot.png` 为用户提供的真实 DSH Desktop 相册截图，展示 PNG/JPG 直接选择、图库卡片和山田背景联动；根目录 README 已将其作为相册背景预览。 |
 
 ## 兼容性结论
 

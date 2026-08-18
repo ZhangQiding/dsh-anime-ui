@@ -1,114 +1,104 @@
 # dsh-yamada-night-shift · 山田的夜班
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 制作的夜间动漫风 UI 皮肤。它只改变展示层：欢迎页保留山田全身构图，进入对话后人物缩至右侧约 `56vh`，同时保留 DSH 原生会话、文件、设置、工具与模型交互。
+一个面向 [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 的夜间动漫风 UI 插件组合：保留 DSH 原生会话、文件、设置、工具和模型交互，只替换展示层，并可选安装一个本地相册伴侣，让 PNG/JPG 图片成为持久背景。
 
-> Night-only anime presentation skin for DeepSeek Harness Web and macOS Desktop. It preserves the native product surface while moving the character from a full-body welcome composition to a conversation-safe right-side placement.
+> Night-only presentation skin for DSH Web and macOS DSH Desktop, plus an optional local photo-album companion. The plugins are presentation-only: they do not inject model services, upload photos, or replace native DSH behavior.
 
-![山田的夜班欢迎页](yamada-night-shift/preview/dark.webp)
+结构参考 [Small-tailqwq/dsh-deep-whale](https://github.com/Small-tailqwq/dsh-deep-whale)：先看效果，再按目标平台安装；皮肤和相册保持为两个可独立启用、卸载即恢复的包。
 
-![山田的夜班对话页](yamada-night-shift/preview/chat.webp)
+## 效果预览 / Preview
 
-## 特性 / Highlights
+| 欢迎页 / Welcome | 对话页 / Conversation | 相册背景 / Album background |
+| --- | --- | --- |
+| ![山田的夜班欢迎页](yamada-night-shift/preview/dark.webp) | ![山田的夜班对话页](yamada-night-shift/preview/chat.webp) | ![相册 PNG/JPG 背景示例](docs/verification/album-background-user-screenshot.png) |
 
-- 夜间专用的酒红、琥珀和霓虹青配色 / Night-only burgundy, amber, and teal palette.
-- 欢迎页全身人物；对话页约 `56vh` / Full-body welcome composition; compact active-chat composition.
-- 保留真实 DSH DOM、文案和交互，不伪造功能面板 / Native DSH structure, copy, and behavior stay intact.
-- 纯 client presentation skin；不注入模型服务，不发送额外事件 / Presentation-only client plugin; no model-service injection or extra Cordis events.
-- 图片以 WebP data URI 编入 `lib/client.js`，运行时无远程素材依赖 / Runtime artwork is embedded; no remote asset dependency.
-- 支持 DSH Web 与 macOS DSH Desktop / Supports DSH Web and DSH Desktop on macOS.
-- 可重复激活，销毁时恢复 title、favicon、theme color、DOM 和 body 属性 / Idempotent activation and complete teardown.
-- 可选安装仓库内的 `photo-album/` 伴侣包，在相册网格或灯箱中把本地照片设为背景并持久化 / Optional companion lets users choose a local album photo as the persistent skin background.
+右侧截图来自真实 DSH Desktop：相册顶部可以直接选择 PNG/JPG，卡片或灯箱可以把本地照片设为背景。截图保留了实际运行时的相册路径，方便对照功能；它不会被插件上传或写入运行时 bundle。
+
+## 你会得到 / Packages
+
+| 包 | 作用 | 许可证 |
+| --- | --- | --- |
+| `@dsh-external/dsh-client-ui-skin-yamada-night-shift` | 山田夜班皮肤：欢迎页全身构图、对话页右侧安全构图、夜间配色 | CC BY-NC-SA 4.0 |
+| `dsh-photo-album` | 可选相册伴侣：目录扫描、灯箱、PNG/JPG 原生选择器、持久背景 | MIT |
+
+皮肤可以单独使用；只有同时安装两个包，**相册 → 设为背景** 才会驱动山田皮肤的背景。
 
 ## 安装 / Install
 
-先通过 GitHub 的 **Code → Clone/Download ZIP** 获取本仓库，并进入仓库根目录。
+需要 macOS DSH Desktop 或 DSH Web，以及 Node.js 22+。先克隆仓库并进入根目录：
 
-Get this repository through GitHub's **Code → Clone/Download ZIP**, then open
-the repository root in a terminal.
+```sh
+git clone https://github.com/ZhangQiding/dsh-anime-ui.git
+cd dsh-anime-ui
+```
 
-DSH Web：
+### DSH Web
 
 ```sh
 dsh plugin --profile web add "$PWD/yamada-night-shift"
-dsh plugin --profile web add "$PWD/photo-album"
+dsh plugin --profile web add "$PWD/photo-album"   # 可选，但相册背景需要它
 ```
 
-macOS DSH Desktop（已将 `dsh` 安装到 PATH 时）：
+注册后刷新 DSH Web。已注册的本地链接会直接读取仓库里的 `lib/`，重建后刷新页面即可验证改动。
+
+### macOS DSH Desktop
 
 ```sh
 dsh plugin --profile desktop add "$PWD/yamada-night-shift"
-dsh plugin --profile desktop add "$PWD/photo-album"
+dsh plugin --profile desktop add "$PWD/photo-album"   # 可选，但相册背景需要它
 ```
 
-如果只安装了 `DSH Desktop.app`，可使用应用内置 CLI：
+如果 `dsh` 不在 `PATH`，请使用 DSH Desktop 内置 CLI；包目录和参数不变：
 
 ```sh
-ELECTRON_RUN_AS_NODE=1 \
-  '/Applications/DSH Desktop.app/Contents/MacOS/DSH Desktop' \
+ELECTRON_RUN_AS_NODE=1 '/Applications/DSH Desktop.app/Contents/MacOS/DSH Desktop' \
   --expose-internals \
   '/Applications/DSH Desktop.app/Contents/Resources/app.asar.unpacked/lib/desktop-cli.js' \
   plugin --profile desktop add "$PWD/yamada-night-shift"
-
-ELECTRON_RUN_AS_NODE=1 \
-  '/Applications/DSH Desktop.app/Contents/MacOS/DSH Desktop' \
-  --expose-internals \
-  '/Applications/DSH Desktop.app/Contents/Resources/app.asar.unpacked/lib/desktop-cli.js' \
-  plugin --profile desktop add "$PWD/photo-album"
 ```
 
-第二条 `photo-album` 命令为可选项，但安装后才能使用“相册照片 → 设为背景”。首次注册插件后重启对应 DSH 实例。已注册的本地链接会直接读取本仓库的 `lib/`；DSH Web 重新构建后刷新页面即可看到更新。macOS DSH Desktop 2.0.1 的打包版在切换皮肤或重新构建后需要退出并重新打开应用，才能重建 client boot graph。
-
-The `photo-album` command is optional and enables **Album photo → Use as background**. Restart the target DSH instance after first registration. A linked local install reads the committed `lib/` bundle directly. Refresh DSH Web after rebuilding. Packaged macOS DSH Desktop 2.0.1 must be quit and reopened after switching skins or rebuilding so that it recreates the client boot graph.
+把最后的目录换成 `"$PWD/photo-album"` 即可安装相册伴侣。首次注册、切换、升级或卸载后，请退出并重新打开打包版 DSH Desktop 2.0.1；这是宿主 boot graph 的生命周期要求。
 
 ## 相册背景 / Album background
 
-安装两个包并重启后，打开侧边栏 **相册**：
+安装两个包并重启后，在侧边栏打开 **相册**：
 
-![直接选择 PNG/JPG 并设为背景](docs/verification/album-png-jpg-picker.jpeg)
+1. 点击 **选择 PNG/JPG 设为背景…**，在 Finder 中选择 `.png`、`.jpg` 或 `.jpeg`。文件会复制到插件自己的 `DSH_HOME/storages/dsh-photo-album/photos/`，并立即应用。
+2. 需要浏览整个文件夹时，在 **设置 → 相册** 配置照片目录和是否递归，再从网格卡片或灯箱点击 **设为背景**。
+3. 顶部的 **恢复默认背景** 会清除当前选择并回到山田内置夜景。
 
-1. 点击顶部 **选择 PNG/JPG 设为背景…**，可直接在 Finder 中选一张 `.png`、`.jpg` 或 `.jpeg`；插件会复制到自己的本地图库并立即应用。
-2. 也可以使用 **选择照片目录…** 扫描整个文件夹，再从网格卡片或灯箱点击 **设为背景**。目录模式还支持 WebP、GIF、AVIF、BMP 与 SVG。
-3. 选择会写入 DSH Home 下的 `storages/dsh-photo-album.json`，并立即通知山田皮肤。
-4. Desktop 下次以不同随机端口启动时仍会从插件状态恢复，不依赖 `localStorage`；冷启动时相册会重播状态，皮肤也会等待路由就绪。
-5. 点击 **恢复默认背景** 返回内置夜景；照片不存在、目录改变或相册插件不可用时也会安全回退。
+直接选择支持 PNG/JPG/JPEG，目录模式还支持 WebP、GIF、AVIF、BMP 和 SVG；单个导入文件上限为 25 MB。背景选择保存在插件自有 JSON 状态中，不依赖 `localStorage`，因此 Desktop 换端口或冷启动后仍可恢复。照片只通过 loopback 媒体路由读取，不上传、不复制进仓库。
 
-直接选择的 PNG/JPG 会复制到本机 `DSH_HOME/storages/dsh-photo-album/photos/`；目录模式不会复制源照片。两种模式都只通过 loopback `/api/photo-album/media` 读取，不上传、不写入仓库，也不会变成远程运行时资产。
+更多相册配置、目录模式和安全边界见 [`photo-album/README.zh.md`](photo-album/README.zh.md) / [`photo-album/README.md`](photo-album/README.md)。
 
-After installing both packages, open **Album**. **Choose PNG/JPG as background…** selects a raster file directly, copies it into `DSH_HOME/storages/dsh-photo-album/photos/`, and applies it immediately; directory mode remains available for whole folders and additional formats. The opaque selection survives Desktop port changes, and all photo bytes stay local behind the loopback album route.
+## 切换、更新与卸载 / Switch, update, uninstall
 
-## 切换与卸载 / Switch and uninstall
-
-皮肤插件 id 为 `ui-skin-yamada-night-shift`。和其他皮肤切换时，只启用一个 skin：
-
-```yaml
-- id: ui-skin-yamada-night-shift
-  disabled: false
-```
-
-将该行改为 `disabled: true` 即停用。若同时使用 DSH home 层和 profile 层 patch，请同步修改两处的山田条目；其他皮肤的互斥条目只放在安装了它们的 profile patch 中，避免全局层影响 Web/Desktop 之外的 profile。DSH Web 在配置 watcher 更新 boot graph 后刷新页面；macOS DSH Desktop 2.0.1 切换后退出并重新打开应用。
-
-卸载：
+皮肤包 id 为 `ui-skin-yamada-night-shift`。同一 profile 只启用一个 `ui-skin-*` 皮肤；切换时将旧条目的 `disabled` 设为 `true`，再启用新条目。更新本地链接后重新构建对应包，Web 刷新，Desktop 退出并重开。
 
 ```sh
+# 更新本地 bundle（按需执行）
+(cd yamada-night-shift && npm install && npm run build && npm test)
+(cd photo-album && pnpm install && pnpm run build && pnpm run typecheck && pnpm run test)
+
+# 卸载
 dsh plugin --profile web remove @dsh-external/dsh-client-ui-skin-yamada-night-shift
-dsh plugin --profile desktop remove @dsh-external/dsh-client-ui-skin-yamada-night-shift
 dsh plugin --profile web remove dsh-photo-album
+dsh plugin --profile desktop remove @dsh-external/dsh-client-ui-skin-yamada-night-shift
 dsh plugin --profile desktop remove dsh-photo-album
 ```
 
-使用 Desktop 内置 CLI 时，把上述 `dsh` 前缀替换为安装示例中的 Desktop 命令前缀。卸载后重启目标实例。
-
-Set `disabled: true` to deactivate the skin. If both DSH-home and profile patch layers exist, update the Yamada row in both. Refresh DSH Web after its config watcher updates the boot graph. Quit and reopen packaged macOS DSH Desktop 2.0.1 after every skin switch. Remove the package with the commands above and restart the target instance.
+卸载后重启目标实例；皮肤会清理自己创建的 DOM、CSS、favicon、标题和背景状态，不会修改 DSH 源码。
 
 ## 开发 / Development
 
-需要 Node.js 22 或更高版本。
+两个包各自独立构建，不需要 checkout DSH 源码：
 
 ```sh
 cd yamada-night-shift
 npm install
 npm run build
 npm test
+npm pack --dry-run
 
 cd ../photo-album
 pnpm install
@@ -117,48 +107,27 @@ pnpm run test
 pnpm run build
 ```
 
-构建流程会先把 `assets/*.webp` 嵌入 `src/client/background-art.generated.ts`，再生成已提交的 `lib/`。提交前建议执行：
-
-```sh
-npm run build
-npm test
-npm pack --dry-run
-```
+提交前建议同时运行 `git diff --check`。运行时素材会被嵌入已提交的 `lib/` bundle，因此使用者可以直接安装本仓库目录，不依赖远程图片。
 
 ## 仓库结构 / Repository layout
 
 ```text
-assets/
-  final/                 最终生成的 PNG 原图
-  ui-history/            从“考试”项目迁移的上下文图片与历史产出
-docs/                    迁移记录、资产清单、开发上下文
-yamada-night-shift/
-  assets/                运行时 WebP 素材
-  lib/                   可直接安装的预构建 bundle
-  preview/               真实 DSH Desktop 截图
-  src/                   插件源码
-  tests/                 生命周期与视觉契约测试
-photo-album/             可选相册伴侣：本地目录、网格/灯箱、持久背景选择
+yamada-night-shift/  皮肤源码、预构建 lib、运行时素材和真实预览
+photo-album/         可选相册源码、预构建 lib、示例 PNG/JPG/SVG
+docs/                迁移上下文、验收记录、资产清单和截图证据
+assets/              最终母版与从“考试”项目迁移的历史图片
+pic/                 用户提供的参考图（原文件名保留）
 ```
 
 ## 兼容性 / Compatibility
 
-- DSH Web：桌面宽屏和窄屏响应式布局。
-- DSH Desktop：macOS；已在 DSH Desktop 2.0.1 上进行本地链接安装和真实界面检查。
-- 相册背景联动：需要同时安装 `yamada-night-shift/` 与 `photo-album/`；缺少伴侣包时皮肤保持内置夜景。
-- 浅色模式：本皮肤仍保持夜间视觉，这是设计约束，不是自动亮暗双主题。
-- 其他操作系统的 DSH Desktop 尚未作为发布目标。
+- DSH Web：桌面宽屏和窄屏响应式布局；安装后刷新页面。
+- DSH Desktop：当前发布目标为 macOS，已按 DSH Desktop 2.0.1 的本地链接流程验收。
+- 皮肤是 Night-only 视觉，不提供自动浅色主题。
+- 相册背景联动需要同时安装 `yamada-night-shift/` 与 `photo-album/`。
 
-## 来源与许可 / Attribution and license
+## 来源、许可与反馈 / Attribution, license, feedback
 
-兼容性脚手架和生命周期结构基于 [Small-tailqwq/dsh-deep-whale](https://github.com/Small-tailqwq/dsh-deep-whale) 的 `maid-atelier` 适配。运行时不包含该皮肤的女仆图片。
+生命周期脚手架和接入方式参考 [dsh-deep-whale](https://github.com/Small-tailqwq/dsh-deep-whale) 的 `maid-atelier` 适配；本仓库不包含该项目的女仆图片。山田皮肤、视觉资产和迁移材料按 **CC BY-NC-SA 4.0** 发布；独立相册伴侣按目录内 **MIT** 发布，详情见各目录的 `LICENSE` 与 `NOTICE`。
 
-山田皮肤、视觉资产和迁移材料以 **CC BY-NC-SA 4.0** 发布：必须署名、禁止商业使用、衍生作品须以相同协议共享。独立的 `photo-album/` 伴侣包沿用其目录内的 **MIT** 许可证。详情见各目录的 LICENSE 与 NOTICE。
-
-The compatibility scaffold and lifecycle shape were adapted from `maid-atelier` in `Small-tailqwq/dsh-deep-whale`. The skin and visual materials use **CC BY-NC-SA 4.0**. The independent `photo-album/` companion retains its directory-level **MIT** license.
-
-## 发布前 / Before publishing
-
-建议将 GitHub 仓库命名为 `dsh-yamada-night-shift`。迁移的上下文、图片、预构建 `lib/`、真实预览图与卸载还原证据均已包含，不依赖旧“考试”项目。发布前执行 `npm run build && npm test && npm pack --dry-run`，并保留根目录及包目录中的 `LICENSE` 与 `NOTICE`。
-
-The suggested GitHub repository name is `dsh-yamada-night-shift`. All migrated context, image assets, prebuilt bundles, real previews, and native-restore evidence live in this repository. Before publishing, run `npm run build && npm test && npm pack --dry-run`, and keep both copies of `LICENSE` and `NOTICE` intact.
+如果这个皮肤对你有用，欢迎在 GitHub 点一个 ⭐；遇到安装或兼容问题，请附上 DSH Web/Desktop 版本、profile 和复现步骤后开 Issue。
