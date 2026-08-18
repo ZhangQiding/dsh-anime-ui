@@ -1,0 +1,64 @@
+{
+  "name": "@dsh-external/dsh-client-ui-skin-yamada-night-shift",
+  "description": "Night-only anime presentation skin for DeepSeek Harness Web and macOS Desktop",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./skin.json": "./skin.json",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "assets:embed": "node scripts/embed-assets.mjs",
+    "build": "npm run assets:embed && tsdown",
+    "test": "vitest run"
+  },
+  "license": "CC-BY-NC-SA-4.0",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "ui-skin",
+    "anime",
+    "night-theme",
+    "macos"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "jsdom": "29.1.1",
+    "lightningcss": "^1.32.0",
+    "tsdown": "0.22.14",
+    "vitest": "4.1.10"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "skin.json",
+    "preview",
+    "assets",
+    "scripts",
+    "src",
+    "tests",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ]
+}

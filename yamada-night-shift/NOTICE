@@ -1,0 +1,30 @@
+dsh-yamada-night-shift / 山田的夜班
+===================================
+
+Code and compatibility scaffold
+---------------------------------
+
+The plugin lifecycle, DSH client wiring, compatibility selectors, and build
+shape were adapted from `maid-atelier` in Small-tailqwq/dsh-deep-whale:
+
+https://github.com/Small-tailqwq/dsh-deep-whale
+
+The adapted work remains under CC BY-NC-SA 4.0. Keep this notice, the LICENSE
+file, and the upstream attribution when copying or modifying this project.
+
+Visual assets
+-------------
+
+The shipped character and night-background assets were created for this skin
+with OpenAI image generation, using user-supplied Yamada visual references.
+The repository also preserves the migrated reference images and UI-development
+history under `../assets/ui-history/` for project provenance.
+
+No artwork from the dsh-deep-whale maid skin is included in the runtime bundle.
+
+License summary
+---------------
+
+CC BY-NC-SA 4.0: attribution is required, commercial use is not permitted, and
+adaptations must be shared under the same license. The LICENSE file is the
+authoritative license text.

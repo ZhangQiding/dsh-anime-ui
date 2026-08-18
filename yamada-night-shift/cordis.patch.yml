@@ -1,0 +1,7 @@
+# Yamada Night Shift bundle patch: inserts its public dsh.client entry into the
+# DSH Web/Desktop client roster. Install it with
+# `dsh plugin --profile <web-or-desktop> add <path-or-git-url>`.
+# Mutual exclusion is controlled by the active DSH profile's disabled rows.
+- insert:
+    - id: ui-skin-yamada-night-shift
+      name: '@dsh-external/dsh-client-ui-skin-yamada-night-shift'

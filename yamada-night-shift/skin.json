@@ -1,0 +1,29 @@
+{
+  "id": "yamada-night-shift",
+  "name": "山田的夜班",
+  "nameEn": "Yamada Night Shift",
+  "author": "dsh-yamada-night-shift contributors",
+  "tagline": "酒红、琥珀与霓虹青交织的深夜工作台",
+  "description": "面向 DeepSeek Harness Web 与 macOS Desktop 的夜间动漫风展示皮肤。欢迎页保留山田全身构图，对话页自动缩至右侧安全区；原生会话、文件、设置、工具和模型交互保持不变。",
+  "tags": [
+    "anime",
+    "yamada",
+    "night",
+    "burgundy",
+    "amber",
+    "glass",
+    "macos"
+  ],
+  "accent": "#d17483",
+  "bodyAttr": "data-dsh-yamada-night-shift",
+  "package": "@dsh-external/dsh-client-ui-skin-yamada-night-shift",
+  "wiring": {
+    "id": "ui-skin-yamada-night-shift",
+    "bundleWired": false
+  },
+  "preview": {
+    "light": "preview/dark.webp",
+    "dark": "preview/dark.webp"
+  },
+  "order": 5
+}

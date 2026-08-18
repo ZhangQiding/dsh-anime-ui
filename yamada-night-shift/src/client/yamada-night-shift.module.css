@@ -1,0 +1,417 @@
+/* Yamada Night Shift — night-only presentation layer for stock DSH surfaces. */
+
+body[data-dsh-yamada-night-shift],
+body[data-dsh-yamada-night-shift][data-ds-dark-theme] {
+  color-scheme: dark;
+  color: #f2ecec;
+  background-color: #070a0e;
+  --yamada-sidebar-width: 280px;
+  --yamada-titlebar-height: 0px;
+  --yamada-rose: #d17483;
+  --yamada-rose-deep: #8f3445;
+  --yamada-wine: #35131d;
+  --yamada-glass: rgba(9, 12, 16, 0.78);
+  --yamada-glass-strong: rgba(10, 12, 17, 0.94);
+  --yamada-border: rgba(255, 255, 255, 0.09);
+  --yamada-border-accent: rgba(209, 116, 131, 0.34);
+  --yamada-shadow: 0 18px 64px rgba(0, 0, 0, 0.46);
+
+  --dsw-alias-bg-base: transparent;
+  --dsw-alias-bg-layer-1: rgba(9, 12, 16, 0.8);
+  --dsw-alias-bg-layer-2: rgba(17, 19, 25, 0.92);
+  --dsw-alias-bg-layer-3: rgba(25, 27, 34, 0.96);
+  --dsw-alias-bg-overlay: rgba(8, 10, 14, 0.98);
+  --dsw-alias-border-l1: rgba(255, 255, 255, 0.075);
+  --dsw-alias-border-l2-darkmode-thin: rgba(255, 255, 255, 0.1);
+  --dsw-alias-border-l2: rgba(255, 255, 255, 0.13);
+  --dsw-alias-border-l3: rgba(209, 116, 131, 0.42);
+  --dsw-alias-brand-primary: #d17483;
+  --dsw-alias-brand-text: #f7edef;
+  --dsw-alias-button-elevated-fill: rgba(35, 29, 34, 0.96);
+  --dsw-alias-button-floating-fill: rgba(28, 24, 29, 0.98);
+  --dsw-alias-button-floating-hover: #49303a;
+  --dsw-alias-button-info-fill: #8f3445;
+  --dsw-alias-button-info-hover: #ad4659;
+  --dsw-alias-interactive-bg-active: rgba(168, 56, 75, 0.28);
+  --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.065);
+  --dsw-alias-interactive-bg-hover-solid: #2b242a;
+  --dsw-alias-label-primary: #f2ecec;
+  --dsw-alias-label-primary-bluish: #f4e9eb;
+  --dsw-alias-label-secondary: #c3b9bc;
+  --dsw-alias-label-tertiary: #91878b;
+  --dsw-alias-label-caption: #736b6e;
+  --dsw-alias-state-business-primary: #cf6d7d;
+  --dsw-alias-state-business-tertiary: #40262e;
+  --dsw-shadow-lv2: var(--yamada-shadow);
+  --dsw-specific-input-major: rgba(10, 13, 17, 0.9);
+  --dsw-specific-selector: rgba(36, 31, 36, 0.96);
+  --dsw-specific-sidebar-fill: rgba(6, 8, 12, 0.92);
+}
+
+body[data-dsh-yamada-night-shift] [id='root'] {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+}
+
+body[data-dsh-yamada-night-shift] [id='root'] > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Character and environment are independent so the character can retreat
+   without resampling the 16:9 background. */
+body[data-dsh-yamada-night-shift] [data-skin-chrome='character-stage'] {
+  position: fixed;
+  inset: var(--yamada-titlebar-height, 0px) 0 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+body[data-dsh-yamada-night-shift] [data-yamada-character] {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  width: auto;
+  max-width: none;
+  object-fit: contain;
+  object-position: center bottom;
+  transition:
+    translate 520ms cubic-bezier(0.22, 0.78, 0.2, 1),
+    right 520ms cubic-bezier(0.22, 0.78, 0.2, 1),
+    height 520ms cubic-bezier(0.22, 0.78, 0.2, 1),
+    opacity 320ms ease;
+}
+
+body[data-dsh-yamada-night-shift] [data-yamada-character='left'] {
+  display: none;
+}
+
+body[data-dsh-yamada-night-shift] [data-yamada-character='right'] {
+  right: clamp(220px, 24vw, 430px);
+  bottom: -12px;
+  height: clamp(570px, 91vh, 1050px);
+  opacity: 0.96;
+  filter: brightness(0.84) saturate(0.88) drop-shadow(0 26px 38px rgba(0, 0, 0, 0.55));
+}
+
+body[data-dsh-yamada-night-shift][data-yamada-chat-active]
+  [data-yamada-character='right'] {
+  right: clamp(210px, 22vw, 400px);
+  bottom: -12px;
+  height: clamp(370px, 56vh, 690px);
+  opacity: 0.76;
+  filter: brightness(0.68) saturate(0.72) drop-shadow(0 18px 30px rgba(0, 0, 0, 0.55));
+}
+
+body[data-dsh-yamada-night-shift][data-yamada-better-sidebar-open]
+  [data-yamada-character='right'] {
+  translate: -34px 0;
+}
+
+body[data-dsh-yamada-night-shift][data-yamada-viewport-resizing]
+  [data-yamada-character],
+body[data-dsh-yamada-night-shift][data-yamada-low-power]
+  [data-yamada-character] {
+  transition: none;
+  filter: none;
+}
+
+/* Native frame and sidebar. */
+body[data-dsh-yamada-night-shift] [class*='frame'] {
+  background: transparent;
+}
+
+body[data-dsh-yamada-night-shift] [class*='titlebar'] {
+  position: relative;
+  background: linear-gradient(90deg, rgba(13, 7, 11, 0.99), rgba(6, 9, 13, 0.98));
+  border-bottom: 1px solid rgba(209, 116, 131, 0.14);
+}
+
+body[data-dsh-yamada-night-shift] [class*='titlebar'] [class*='button'] {
+  color: #cfc5c8;
+}
+
+body[data-dsh-yamada-night-shift] [class*='titlebar'] [class*='button']:hover {
+  color: #fff5f6;
+  background: rgba(209, 116, 131, 0.12);
+}
+
+body[data-dsh-yamada-night-shift] :is([data-pane='sidebar'], [class*='sidebarCol']) {
+  position: relative;
+  z-index: 8;
+  color: #e9e0e2;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(116, 32, 49, 0.15), transparent 34%),
+    linear-gradient(180deg, rgba(12, 8, 12, 0.96), rgba(5, 8, 12, 0.94)) !important;
+  border-right: 1px solid rgba(209, 116, 131, 0.14);
+  box-shadow: 18px 0 54px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(18px) saturate(0.82);
+}
+
+body[data-dsh-yamada-night-shift] [data-yamada-workspace-row] {
+  border-left: 2px solid transparent;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+body[data-dsh-yamada-night-shift] [data-yamada-workspace-active] {
+  border-left-color: var(--yamada-rose);
+  background: linear-gradient(90deg, rgba(143, 52, 69, 0.25), transparent);
+}
+
+body[data-dsh-yamada-night-shift] [data-yamada-session-row][aria-selected='true'] {
+  background: rgba(143, 52, 69, 0.22);
+  box-shadow: inset 2px 0 var(--yamada-rose);
+}
+
+body[data-dsh-yamada-night-shift] [data-skin-chrome='sidebar-mascot'] {
+  position: absolute;
+  right: 16px;
+  bottom: 102px;
+  z-index: 1;
+  width: 54px;
+  height: 54px;
+  object-fit: cover;
+  object-position: 50% 14%;
+  border: 1px solid rgba(209, 116, 131, 0.45);
+  border-radius: 50%;
+  background: #160d12;
+  opacity: 0.9;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.48), 0 0 0 3px rgba(126, 44, 59, 0.12);
+  pointer-events: none;
+}
+
+body[data-dsh-yamada-night-shift][data-yamada-sidebar-size='rail']
+  [data-skin-chrome='sidebar-mascot'] {
+  right: 50%;
+  width: 38px;
+  height: 38px;
+  translate: 50% 0;
+  opacity: 0.7;
+}
+
+/* Main and optional right workbench remain real DSH surfaces. */
+body[data-dsh-yamada-night-shift] :is(
+  [data-pane='conversation'],
+  [class*='centerCol'],
+  [data-phase='hero'],
+  [data-phase='active'],
+  [class*='ConversationRoot']
+) {
+  background: transparent !important;
+}
+
+body[data-dsh-yamada-night-shift] :is(
+  [data-dsh-better-sidebar],
+  [data-cordis-panel],
+  [class*='rightCol'],
+  [class*='detailsPanel']
+) {
+  position: relative;
+  z-index: 8;
+  color: #e8dfe1;
+  background: rgba(7, 10, 14, 0.91) !important;
+  border-left: 1px solid rgba(209, 116, 131, 0.13);
+  backdrop-filter: blur(16px) saturate(0.82);
+}
+
+body[data-dsh-yamada-night-shift] header[class*='header'] {
+  border-bottom-color: var(--yamada-border);
+  background: rgba(7, 10, 14, 0.54);
+  backdrop-filter: blur(10px);
+}
+
+/* Hero copy and composer: compact dark glass, no counterfeit controls. */
+body[data-dsh-yamada-night-shift] [data-phase='hero'] {
+  --dsh-chat-content-width: clamp(540px, 42vw, 740px);
+  --dsh-composer-card-max-width: calc(var(--dsh-chat-content-width) + 28px);
+}
+
+body[data-dsh-yamada-night-shift] [data-phase='hero'] [class*='headlineText'] {
+  color: #f5edef;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.86);
+}
+
+body[data-dsh-yamada-night-shift] [data-phase='hero'] [class*='previewBadge'] {
+  color: #e2a4ae;
+  background: rgba(74, 24, 34, 0.68);
+  border-color: rgba(209, 116, 131, 0.28);
+}
+
+body[data-dsh-yamada-night-shift] [data-composer-card] {
+  position: relative;
+  z-index: 5;
+  color: #eee7e8;
+  background:
+    linear-gradient(145deg, rgba(14, 16, 21, 0.92), rgba(8, 11, 15, 0.86)) !important;
+  border: 1px solid rgba(209, 116, 131, 0.24) !important;
+  border-radius: 18px !important;
+  box-shadow: var(--yamada-shadow), inset 0 1px rgba(255, 255, 255, 0.035) !important;
+  backdrop-filter: blur(14px) saturate(0.84);
+}
+
+body[data-dsh-yamada-night-shift] [data-composer-card]::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(110deg, rgba(209, 116, 131, 0.18), transparent 28%, transparent 74%, rgba(49, 139, 150, 0.1));
+}
+
+body[data-dsh-yamada-night-shift] :is(
+  [data-input-mirror],
+  textarea,
+  input,
+  [contenteditable='true']
+) {
+  color: #f0e9ea !important;
+  caret-color: #e07e8e;
+  background: transparent !important;
+}
+
+body[data-dsh-yamada-night-shift] :is(textarea, input)::placeholder {
+  color: #81787b !important;
+}
+
+body[data-dsh-yamada-night-shift] [data-composer-card] button {
+  color: #d5cbce;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+body[data-dsh-yamada-night-shift] [data-composer-card] button:hover {
+  color: #fff5f6;
+  background: rgba(209, 116, 131, 0.13);
+}
+
+body[data-dsh-yamada-night-shift] [data-composer-card] button[class*='primary'] {
+  color: #fff7f8;
+  background: linear-gradient(145deg, #a94759, #6f2635);
+  border-color: rgba(226, 137, 151, 0.42);
+  box-shadow: 0 8px 20px rgba(75, 18, 31, 0.38);
+}
+
+/* Conversation, disclosure, code and dialog readability. */
+body[data-dsh-yamada-night-shift] [data-chat-flow] {
+  background: linear-gradient(90deg, rgba(6, 9, 13, 0.7), rgba(6, 9, 13, 0.38));
+  backdrop-filter: blur(6px) saturate(0.82);
+}
+
+body[data-dsh-yamada-night-shift] [class*='userRow'] [class*='bubble'] {
+  color: #f5edef;
+  background: rgba(71, 28, 39, 0.88) !important;
+  border: 1px solid rgba(209, 116, 131, 0.24);
+}
+
+body[data-dsh-yamada-night-shift]
+  [data-chat-flow-kind='assistant-step'] > * > * > * > div[class*='markdown'] {
+  color: #e9e2e4;
+  background: rgba(13, 16, 21, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(9px);
+}
+
+body[data-dsh-yamada-night-shift] :is(
+  [data-terminal],
+  pre,
+  code,
+  [class*='codeBlock']
+) {
+  --dsw-alias-markdown-code-block: rgba(6, 8, 12, 0.95);
+  color: #e7e0e2;
+  background-color: rgba(6, 8, 12, 0.94);
+}
+
+body[data-dsh-yamada-night-shift] :is(
+  [role='dialog'],
+  [role='menu'],
+  [data-radix-popper-content-wrapper] > *,
+  [data-testid='todo-panel']
+) {
+  color: #eee7e8;
+  background: var(--yamada-glass-strong) !important;
+  border-color: var(--yamada-border-accent) !important;
+  box-shadow: var(--yamada-shadow);
+  backdrop-filter: blur(18px) saturate(0.85);
+}
+
+/* Source lifecycle keeps these compatibility nodes for repeated activation;
+   this skin intentionally has no lace/chrome layer. */
+body[data-dsh-yamada-night-shift] :is(
+  [data-skin-chrome='top-trim'],
+  [data-skin-chrome='bottom-trim'],
+  [data-skin-chrome='sidebar-corners'],
+  [data-skin-chrome='titlebar-brand'],
+  [data-yamada-settings-backdrop-frame]
+) {
+  display: none !important;
+}
+
+body[data-dsh-yamada-night-shift] [data-variant='think'][data-state='running'] {
+  border-left: 2px solid var(--yamada-rose);
+}
+
+body[data-dsh-yamada-night-shift] [data-variant='think'][data-state='running']::after {
+  content: '';
+  display: block;
+  width: 52px;
+  height: 1px;
+  margin-top: 4px;
+  background: linear-gradient(90deg, var(--yamada-rose), transparent);
+  animation: yamada-night-shift-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes yamada-night-shift-pulse {
+  0%, 100% { opacity: 0.26; transform: scaleX(0.72); transform-origin: left; }
+  50% { opacity: 0.92; transform: scaleX(1); transform-origin: left; }
+}
+
+@media (max-width: 980px) {
+  body[data-dsh-yamada-night-shift] [data-yamada-character='right'] {
+    right: 28px;
+    height: clamp(500px, 80vh, 760px);
+    opacity: 0.56;
+  }
+
+  body[data-dsh-yamada-night-shift][data-yamada-chat-active]
+    [data-yamada-character='right'] {
+    height: clamp(300px, 48vh, 520px);
+    opacity: 0.34;
+  }
+}
+
+@media (max-width: 700px) {
+  body[data-dsh-yamada-night-shift] [data-yamada-character='right'] {
+    right: -74px;
+    height: min(72vh, 620px);
+    opacity: 0.32;
+  }
+
+  body[data-dsh-yamada-night-shift][data-yamada-chat-active]
+    [data-yamada-character='right'],
+  body[data-dsh-yamada-night-shift][data-yamada-better-sidebar-open]
+    [data-yamada-character='right'] {
+    opacity: 0;
+  }
+
+  body[data-dsh-yamada-night-shift] [data-phase='hero'] {
+    --dsh-chat-content-width: min(92vw, 640px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-dsh-yamada-night-shift] *,
+  body[data-dsh-yamada-night-shift] *::before,
+  body[data-dsh-yamada-night-shift] *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
