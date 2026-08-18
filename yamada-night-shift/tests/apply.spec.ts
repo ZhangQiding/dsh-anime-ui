@@ -4,6 +4,7 @@ import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { apply } from '../src/client/index.ts'
+import { PHOTO_ALBUM_BACKGROUND_EVENT } from '../src/client/photo-album-background.ts'
 
 const read = (path: string): string => readFileSync(resolve(process.cwd(), path), 'utf8')
 const CSS = read('src/client/yamada-night-shift.module.css')
@@ -107,8 +108,57 @@ describe('Yamada Night Shift lifecycle', () => {
     expect(document.body.style.backgroundPosition).toBe('12px 24px')
   })
 
+  it('applies and resets a persisted album photo without leaking on dispose', async () => {
+    document.body.style.backgroundImage = 'linear-gradient(red, blue)'
+    const fiber = await mount()
+    window.dispatchEvent(new CustomEvent(PHOTO_ALBUM_BACKGROUND_EVENT, {
+      detail: { id: 'user/night/photo.jpg' },
+    }))
+    expect(document.body.style.backgroundImage).toContain('/api/photo-album/media?id=user%2Fnight%2Fphoto.jpg')
+    window.dispatchEvent(new CustomEvent(PHOTO_ALBUM_BACKGROUND_EVENT, { detail: { id: null } }))
+    expect(document.body.style.backgroundImage).toContain('data:image/webp;base64,')
+    await fiber.dispose()
+    expect(document.body.style.backgroundImage).toBe('linear-gradient(red, blue)')
+  })
+
+  it('retries the album route during cold start and applies the persisted photo', async () => {
+    vi.useFakeTimers()
+    try {
+      let requests = 0
+      vi.stubGlobal('fetch', vi.fn(async () => {
+        requests += 1
+        if (requests < 3) return new Response('', { status: 404 })
+        return new Response(JSON.stringify({
+          ok: true,
+          value: {
+            backgroundPhotoId: 'sample/sample-6.svg',
+            photos: [{ id: 'sample/sample-6.svg' }],
+          },
+        }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }))
+      await mount()
+      await vi.advanceTimersByTimeAsync(600)
+      expect(requests).toBe(3)
+      expect(document.body.style.backgroundImage)
+        .toContain('/api/photo-album/media?id=sample%2Fsample-6.svg')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('keeps the same night background across native theme flags', async () => {
     await mount()
+    const initial = document.body.style.backgroundImage
+    document.body.setAttribute('data-ds-dark-theme', '')
+    await flushMutations()
+    expect(document.body.style.backgroundImage).toBe(initial)
+  })
+
+  it('keeps an album background across native theme flag changes', async () => {
+    await mount()
+    window.dispatchEvent(new CustomEvent(PHOTO_ALBUM_BACKGROUND_EVENT, {
+      detail: { id: 'sample/sample-2.svg' },
+    }))
     const initial = document.body.style.backgroundImage
     document.body.setAttribute('data-ds-dark-theme', '')
     await flushMutations()

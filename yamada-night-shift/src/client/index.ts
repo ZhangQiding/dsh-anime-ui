@@ -12,6 +12,11 @@ import {
   YAMADA_NIGHT_SHIFT_PALACE_LIGHT,
 } from './background-art.generated.ts'
 import './yamada-night-shift.module.css'
+import {
+  PHOTO_ALBUM_BACKGROUND_EVENT,
+  backgroundUrlFromEvent,
+  fetchAlbumBackgroundState,
+} from './photo-album-background.ts'
 
 const SKIN_TITLE = '山田的夜班 · DeepSeek Harness'
 const SKIN_OWNER = 'yamada-night-shift'
@@ -25,6 +30,7 @@ const SKIN_ICON = `data:image/svg+xml,${encodeURIComponent(`
   </svg>
 `)}`
 const VIEWPORT_RESIZE_SETTLE_MS = 120
+const ALBUM_BACKDROP_RETRY_DELAYS_MS = [0, 150, 450, 1_000, 2_000] as const
 const SIDEBAR_COLUMN_SELECTOR = ":is([data-pane='sidebar'], [class*='sidebarCol'])"
 const SETTINGS_TRIGGER_SELECTOR = "[data-slot='sidebar.settings'] > :is(button, [role='button'])"
 const SETTINGS_MASK_SELECTOR = "[role='presentation'] > [class*='mask']"
@@ -334,8 +340,18 @@ export function apply(ctx: Context): void {
   let observer: MutationObserver | undefined
   let titlebarOverlay: WindowControlsOverlay | undefined
   let syncTitlebarHeight: (() => void) | undefined
+  let albumBackdropRevision = 0
+  let albumBackdropRetryTimer: ReturnType<typeof setTimeout> | undefined
+  let disposed = false
+  let handleAlbumBackground: ((event: Event) => void) | undefined
 
   ctx.effect(() => () => {
+    disposed = true
+    albumBackdropRevision += 1
+    if (albumBackdropRetryTimer !== undefined) clearTimeout(albumBackdropRetryTimer)
+    if (handleAlbumBackground !== undefined) {
+      window.removeEventListener(PHOTO_ALBUM_BACKGROUND_EVENT, handleAlbumBackground)
+    }
     skinScopeLease.release()
     delete body.dataset.yamadaComposerMotion
     delete body.dataset.yamadaSidebarCompact
@@ -409,13 +425,47 @@ export function apply(ctx: Context): void {
     subtree: true,
   })
   syncSystemChrome()
-  const syncBackdrop = (): void => {
-    const source = body.hasAttribute('data-ds-dark-theme')
+  const defaultBackdrop = (): string => {
+    return body.hasAttribute('data-ds-dark-theme')
       ? YAMADA_NIGHT_SHIFT_PALACE_DARK
       : YAMADA_NIGHT_SHIFT_PALACE_LIGHT
-    body.style.setProperty('background-image', `url(${source})`)
+  }
+  let selectedAlbumBackdrop: string | null = null
+  const applyBackdrop = (source: string | null): void => {
+    selectedAlbumBackdrop = source
+    body.style.setProperty('background-image', `url(${selectedAlbumBackdrop ?? defaultBackdrop()})`)
+  }
+  const syncBackdrop = (): void => {
+    body.style.setProperty('background-image', `url(${selectedAlbumBackdrop ?? defaultBackdrop()})`)
   }
   syncBackdrop()
+  handleAlbumBackground = (event: Event): void => {
+    const source = backgroundUrlFromEvent(event)
+    if (source === undefined) return
+    albumBackdropRevision += 1
+    applyBackdrop(source)
+  }
+  window.addEventListener(PHOTO_ALBUM_BACKGROUND_EVENT, handleAlbumBackground)
+  const backdropRequest = ++albumBackdropRevision
+  const requestPersistedBackdrop = (attempt: number): void => {
+    const run = (): void => {
+      albumBackdropRetryTimer = undefined
+      void fetchAlbumBackgroundState().then((result) => {
+        if (disposed || backdropRequest !== albumBackdropRevision) return
+        if (result.ready) {
+          applyBackdrop(result.source)
+          return
+        }
+        if (attempt + 1 < ALBUM_BACKDROP_RETRY_DELAYS_MS.length) {
+          requestPersistedBackdrop(attempt + 1)
+        }
+      })
+    }
+    const delay = ALBUM_BACKDROP_RETRY_DELAYS_MS[attempt] ?? 0
+    if (delay === 0) run()
+    else albumBackdropRetryTimer = setTimeout(run, delay)
+  }
+  requestPersistedBackdrop(0)
   body.style.setProperty('background-position', 'center top')
   body.style.setProperty('background-size', 'cover')
   body.style.setProperty('background-attachment', 'scroll')

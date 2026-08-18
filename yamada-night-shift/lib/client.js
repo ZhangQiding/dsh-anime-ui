@@ -27,6 +27,58 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 		//#endregion
+		//#region src/client/photo-album-background.ts
+		/** Optional same-origin integration with the companion dsh-photo-album package. */
+		const PHOTO_ALBUM_BACKGROUND_EVENT = "dsh-photo-album:background-change";
+		const PHOTO_ALBUM_LIST_URL = "/api/photo-album/list";
+		/** Validate the album's opaque ids before constructing a same-origin URL. */
+		function isValidBackgroundPhotoId(value) {
+			if (typeof value !== "string" || value.length === 0 || value.length > 2048) return false;
+			if (!value.startsWith("sample/") && !value.startsWith("user/")) return false;
+			if (/[\u0000-\u001f\u007f\\]/.test(value)) return false;
+			const rest = value.slice(value.indexOf("/") + 1);
+			return rest.length > 0 && rest.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..");
+		}
+		/** Return a same-origin route URL only when the selected id exists in the view. */
+		function backgroundUrlFromAlbumView(value) {
+			if (typeof value !== "object" || value === null) return null;
+			const view = value;
+			const selected = view.backgroundPhotoId;
+			if (!isValidBackgroundPhotoId(selected) || !Array.isArray(view.photos)) return null;
+			if (!view.photos.some((photo) => photo !== null && typeof photo === "object" && photo.id === selected)) return null;
+			return `/api/photo-album/media?id=${encodeURIComponent(selected)}`;
+		}
+		/**
+		* Fetch the persisted selection while preserving whether the companion route
+		* is ready. A ready response with no selection is distinct from a cold-start
+		* 404/network failure, so the skin can retry only the latter.
+		*/
+		async function fetchAlbumBackgroundState(fetchImpl = fetch) {
+			try {
+				const response = await fetchImpl(PHOTO_ALBUM_LIST_URL, { cache: "no-store" });
+				if (!response.ok) return { ready: false };
+				const envelope = await response.json();
+				if (typeof envelope !== "object" || envelope === null) return { ready: false };
+				const record = envelope;
+				if (record.ok !== true) return { ready: false };
+				return {
+					ready: true,
+					source: backgroundUrlFromAlbumView(record.value)
+				};
+			} catch {
+				return { ready: false };
+			}
+		}
+		/** Decode the immediate in-page event without trusting a caller-provided URL. */
+		function backgroundUrlFromEvent(event) {
+			const detail = event.detail;
+			if (typeof detail !== "object" || detail === null) return void 0;
+			const id = detail.id;
+			if (id === null) return null;
+			if (!isValidBackgroundPhotoId(id)) return void 0;
+			return `/api/photo-album/media?id=${encodeURIComponent(id)}`;
+		}
+		//#endregion
 		//#region src/client/index.ts
 		const SKIN_TITLE = "山田的夜班 · DeepSeek Harness";
 		const SKIN_OWNER = "yamada-night-shift";
@@ -40,6 +92,13 @@ window.__ModuleLoader__.load({
   </svg>
 `)}`;
 		const VIEWPORT_RESIZE_SETTLE_MS = 120;
+		const ALBUM_BACKDROP_RETRY_DELAYS_MS = [
+			0,
+			150,
+			450,
+			1e3,
+			2e3
+		];
 		const SIDEBAR_COLUMN_SELECTOR = ":is([data-pane='sidebar'], [class*='sidebarCol'])";
 		const SETTINGS_TRIGGER_SELECTOR = "[data-slot='sidebar.settings'] > :is(button, [role='button'])";
 		const SETTINGS_MASK_SELECTOR = "[role='presentation'] > [class*='mask']";
@@ -305,7 +364,15 @@ window.__ModuleLoader__.load({
 			let observer;
 			let titlebarOverlay;
 			let syncTitlebarHeight;
+			let albumBackdropRevision = 0;
+			let albumBackdropRetryTimer;
+			let disposed = false;
+			let handleAlbumBackground;
 			ctx.effect(() => () => {
+				disposed = true;
+				albumBackdropRevision += 1;
+				if (albumBackdropRetryTimer !== void 0) clearTimeout(albumBackdropRetryTimer);
+				if (handleAlbumBackground !== void 0) window.removeEventListener(PHOTO_ALBUM_BACKGROUND_EVENT, handleAlbumBackground);
 				skinScopeLease.release();
 				delete body.dataset.yamadaComposerMotion;
 				delete body.dataset.yamadaSidebarCompact;
@@ -366,11 +433,43 @@ window.__ModuleLoader__.load({
 				subtree: true
 			});
 			syncSystemChrome();
+			const defaultBackdrop = () => {
+				return body.hasAttribute("data-ds-dark-theme") ? YAMADA_NIGHT_SHIFT_PALACE_DARK : YAMADA_NIGHT_SHIFT_PALACE_LIGHT;
+			};
+			let selectedAlbumBackdrop = null;
+			const applyBackdrop = (source) => {
+				selectedAlbumBackdrop = source;
+				body.style.setProperty("background-image", `url(${selectedAlbumBackdrop ?? defaultBackdrop()})`);
+			};
 			const syncBackdrop = () => {
-				const source = body.hasAttribute("data-ds-dark-theme") ? YAMADA_NIGHT_SHIFT_PALACE_DARK : YAMADA_NIGHT_SHIFT_PALACE_LIGHT;
-				body.style.setProperty("background-image", `url(${source})`);
+				body.style.setProperty("background-image", `url(${selectedAlbumBackdrop ?? defaultBackdrop()})`);
 			};
 			syncBackdrop();
+			handleAlbumBackground = (event) => {
+				const source = backgroundUrlFromEvent(event);
+				if (source === void 0) return;
+				albumBackdropRevision += 1;
+				applyBackdrop(source);
+			};
+			window.addEventListener(PHOTO_ALBUM_BACKGROUND_EVENT, handleAlbumBackground);
+			const backdropRequest = ++albumBackdropRevision;
+			const requestPersistedBackdrop = (attempt) => {
+				const run = () => {
+					albumBackdropRetryTimer = void 0;
+					fetchAlbumBackgroundState().then((result) => {
+						if (disposed || backdropRequest !== albumBackdropRevision) return;
+						if (result.ready) {
+							applyBackdrop(result.source);
+							return;
+						}
+						if (attempt + 1 < ALBUM_BACKDROP_RETRY_DELAYS_MS.length) requestPersistedBackdrop(attempt + 1);
+					});
+				};
+				const delay = ALBUM_BACKDROP_RETRY_DELAYS_MS[attempt] ?? 0;
+				if (delay === 0) run();
+				else albumBackdropRetryTimer = setTimeout(run, delay);
+			};
+			requestPersistedBackdrop(0);
 			body.style.setProperty("background-position", "center top");
 			body.style.setProperty("background-size", "cover");
 			body.style.setProperty("background-attachment", "scroll");

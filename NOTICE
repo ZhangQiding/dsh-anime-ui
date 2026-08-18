@@ -10,6 +10,11 @@ Generated visual assets were created for this skin with OpenAI image
 generation using user-supplied Yamada visual references. No maid artwork from
 the upstream project is included in the runtime bundle.
 
-This repository is distributed under CC BY-NC-SA 4.0. Attribution is required,
-commercial use is prohibited, and adaptations must use the same license. See
+The Yamada skin, visual assets, and migrated UI-development material are
+distributed under CC BY-NC-SA 4.0. Attribution is required, commercial use is
+prohibited, and adaptations must use the same license. See
 `yamada-night-shift/NOTICE` for the package-level notice.
+
+The independent `photo-album/` companion is distributed under the MIT License
+in `photo-album/LICENSE`. It persists only opaque local photo ids; user photo
+bytes are not redistributed with this repository.

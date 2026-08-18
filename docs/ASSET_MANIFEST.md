@@ -59,6 +59,14 @@
 
 卸载还原证据位于 `docs/verification/native-restore.webp`，记录真实 DSH Desktop 重启后的官方原生界面。
 
+相册背景功能验收证据也位于 `docs/verification/`：
+
+| 文件 | 用途 |
+| --- | --- |
+| `album-background-selected.jpeg` | 相册打开时 `sample-6.svg` 显示“当前背景” |
+| `album-background-cold-start.jpeg` | Desktop 随机端口冷启动后、打开相册前自动恢复紫色背景 |
+| `album-background-reset.jpeg` | 点击“恢复默认背景”后即时返回山田内置夜景 |
+
 ## 推荐阅读顺序
 
 最终实现采用 `18-yamada-final-lighting.png` 的明暗关系和 `17-yamada-full-width-background.png` 的布局原则，但根据确认范围只发布 Night 版本。`01`–`16` 是方向和人物探索记录，不代表最终选择。
@@ -72,4 +80,5 @@
 - 插件运行时 WebP：2/2。
 - 真实 DSH Desktop WebP 预览：2/2。
 - 卸载还原证据 WebP：1/1。
-- 仓库当前合计：43 张图片文件；迁移资产与最终产出均已保存在当前项目。
+- 相册背景选择 / 冷启动 / 恢复证据 JPEG：3/3。
+- 仓库当前合计：46 张位图文件；迁移资产与最终产出均已保存在当前项目。

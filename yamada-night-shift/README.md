@@ -19,6 +19,7 @@ It is a night-only, presentation-only client skin for DSH Web and DSH Desktop on
 - Native DSH behavior and copy remain untouched.
 - All runtime artwork is embedded in the prebuilt client bundle.
 - Repeated activation is safe and teardown restores all owned mutations.
+- When the optional repository companion `../photo-album/` is installed, a photo selected in its grid or lightbox replaces the night background and persists in plugin-owned DSH Home state. Album state replay plus a bounded route-readiness retry restores it after Desktop cold starts; missing/stale selections fall back to the bundled night scene.
 
 ## 安装 / Install
 
