@@ -64,16 +64,17 @@ The `photo-album` command is optional and enables **Album photo → Use as backg
 
 安装两个包并重启后，打开侧边栏 **相册**：
 
-![相册中选择并持久化背景](docs/verification/album-background-selected.jpeg)
+![直接选择 PNG/JPG 并设为背景](docs/verification/album-png-jpg-picker.jpeg)
 
-1. 在网格卡片或灯箱大图中点击 **设为背景**。
-2. 选择会写入 DSH Home 下的 `storages/dsh-photo-album.json`，并立即通知山田皮肤。
-3. Desktop 下次以不同随机端口启动时仍会从插件状态恢复，不依赖 `localStorage`；冷启动时相册会重播状态，皮肤也会等待路由就绪。
-4. 点击 **恢复默认背景** 返回内置夜景；照片不存在、目录改变或相册插件不可用时也会安全回退。
+1. 点击顶部 **选择 PNG/JPG 设为背景…**，可直接在 Finder 中选一张 `.png`、`.jpg` 或 `.jpeg`；插件会复制到自己的本地图库并立即应用。
+2. 也可以使用 **选择照片目录…** 扫描整个文件夹，再从网格卡片或灯箱点击 **设为背景**。目录模式还支持 WebP、GIF、AVIF、BMP 与 SVG。
+3. 选择会写入 DSH Home 下的 `storages/dsh-photo-album.json`，并立即通知山田皮肤。
+4. Desktop 下次以不同随机端口启动时仍会从插件状态恢复，不依赖 `localStorage`；冷启动时相册会重播状态，皮肤也会等待路由就绪。
+5. 点击 **恢复默认背景** 返回内置夜景；照片不存在、目录改变或相册插件不可用时也会安全回退。
 
-用户照片只通过本机 loopback `/api/photo-album/media` 路由读取，不会复制进仓库、上传或变成远程运行时资产。
+直接选择的 PNG/JPG 会复制到本机 `DSH_HOME/storages/dsh-photo-album/photos/`；目录模式不会复制源照片。两种模式都只通过 loopback `/api/photo-album/media` 读取，不上传、不写入仓库，也不会变成远程运行时资产。
 
-After installing both packages, open **Album**, choose **Use as background** from a grid card or the lightbox, and use **Restore default background** to return to the built-in night scene. The opaque photo id is persisted in `DSH_HOME/storages/dsh-photo-album.json`, so it survives Desktop port changes. User photo bytes stay on the local machine and are served only through the loopback album route.
+After installing both packages, open **Album**. **Choose PNG/JPG as background…** selects a raster file directly, copies it into `DSH_HOME/storages/dsh-photo-album/photos/`, and applies it immediately; directory mode remains available for whole folders and additional formats. The opaque selection survives Desktop port changes, and all photo bytes stay local behind the loopback album route.
 
 ## 切换与卸载 / Switch and uninstall
 

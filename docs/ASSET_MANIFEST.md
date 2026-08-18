@@ -66,6 +66,9 @@
 | `album-background-selected.jpeg` | 相册打开时 `sample-6.svg` 显示“当前背景” |
 | `album-background-cold-start.jpeg` | Desktop 随机端口冷启动后、打开相册前自动恢复紫色背景 |
 | `album-background-reset.jpeg` | 点击“恢复默认背景”后即时返回山田内置夜景 |
+| `album-png-jpg-picker.jpeg` | Finder 直接导入 JPG 后即时换背景，图库同时显示已导入 PNG/JPG |
+
+`photo-album/assets/samples/` 另包含用于格式验收的真实栅格示例：`sample-1.png`（600×450）和 `sample-2.jpg`（1200×900）。它们由原有抽象 SVG 示例等价栅格化，不引入新的第三方图片。
 
 ## 推荐阅读顺序
 
@@ -81,4 +84,6 @@
 - 真实 DSH Desktop WebP 预览：2/2。
 - 卸载还原证据 WebP：1/1。
 - 相册背景选择 / 冷启动 / 恢复证据 JPEG：3/3。
-- 仓库当前合计：46 张位图文件；迁移资产与最终产出均已保存在当前项目。
+- 相册 PNG/JPG 文件选择器证据 JPEG：1/1。
+- 相册真实 PNG/JPG 示例：2/2。
+- 仓库当前合计：49 张位图文件；迁移资产与最终产出均已保存在当前项目。

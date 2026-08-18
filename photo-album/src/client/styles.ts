@@ -102,8 +102,32 @@ html[data-dsh-photoalbum-active]:not([data-dsh-taskboard-active]):not([data-dsh-
 .dsh-pa-album-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
   flex: none;
+}
+.dsh-pa-file-input {
+  display: none;
+}
+.dsh-pa-import {
+  appearance: none;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-brand-primary);
+  border-radius: 8px;
+  color: var(--dsw-alias-label-primary);
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.dsh-pa-import:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 28%, transparent);
+}
+.dsh-pa-import:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 .dsh-pa-album-count {
   color: var(--dsw-alias-label-secondary);
@@ -163,6 +187,18 @@ html[data-dsh-photoalbum-active]:not([data-dsh-taskboard-active]):not([data-dsh-
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
   line-height: 1.5;
+}
+.dsh-pa-samples-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dsh-pa-formats-hint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 1.4;
 }
 .dsh-pa-choose {
   appearance: none;

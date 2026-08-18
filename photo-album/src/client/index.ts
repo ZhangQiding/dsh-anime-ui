@@ -15,7 +15,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { AlbumController } from './controller.ts'
-import { persistAlbumBackground, persistAlbumDirectory } from './api.ts'
+import { importAlbumPhoto, persistAlbumBackground, persistAlbumDirectory } from './api.ts'
 import { mountGallery } from './gallery-mount.tsx'
 import { mountSidebarEntry } from './sidebar-entry.ts'
 import { AlbumSettingsCardController, AlbumSettingsSection, type AlbumSettings } from './AlbumSettingsCard.tsx'
@@ -68,6 +68,11 @@ export function apply(ctx: ClientContext): void {
         setPhotosDir: async (path) => {
           const result = await persistAlbumDirectory(path)
           if (!result.ok) throw new Error(result.error.message)
+        },
+        importPhoto: async (file) => {
+          const result = await importAlbumPhoto(file)
+          if (!result.ok) throw new Error(result.error.message)
+          return result.value
         },
         setBackgroundPhotoId: async (id) => {
           const result = await persistAlbumBackground(id === '' ? null : id)

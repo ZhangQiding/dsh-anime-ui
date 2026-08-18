@@ -4,8 +4,8 @@ import z from "schemastery";
 import { createReadStream } from "node:fs";
 import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
-import { basename, dirname, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 //#region src/mount-once.ts
 /**
@@ -85,212 +85,6 @@ function isLoopbackRequest(request) {
 	} catch {
 		return false;
 	}
-}
-//#endregion
-//#region src/host/routes.ts
-/**
-* /api/photo-album/* routes: one JSON endpoint for the album view and one
-* media endpoint streaming photo bytes. Every request is loopback-fenced first,
-* so a LAN-exposed deployment cannot enumerate or read photo files.
-* @module dsh-photo-album/host/routes
-*/
-const OK = (value) => ({
-	ok: true,
-	value
-});
-const FAIL = (error) => ({
-	ok: false,
-	error
-});
-const BAD_REQUEST = {
-	code: "bad-request",
-	message: "malformed request"
-};
-const NOT_FOUND$1 = {
-	code: "not-found",
-	message: "photo not found"
-};
-const MAX_JSON_BYTES = 4096;
-/** Write one JSON envelope response. */
-function json(res, envelope, status = 200) {
-	res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-	res.end(JSON.stringify(envelope));
-}
-/** Write the shared non-loopback rejection. */
-function forbidden(res) {
-	res.writeHead(403, { "content-type": "application/json; charset=utf-8" });
-	res.end(JSON.stringify({ error: "forbidden: loopback-only" }));
-}
-/** Stream one photo with an etag + no-cache so re-renders revalidate cheaply. */
-async function serveMedia(service, req, url, res) {
-	const id = url.searchParams.get("id");
-	if (id === null || id === "") {
-		json(res, FAIL(BAD_REQUEST), 400);
-		return;
-	}
-	const resolved = await service.resolveMedia(id);
-	if (!resolved.ok) {
-		json(res, FAIL(resolved.error), 404);
-		return;
-	}
-	const info = await stat(resolved.abs);
-	const etag = `W/"${info.size}-${Math.floor(info.mtimeMs)}"`;
-	const lastModified = new Date(info.mtimeMs).toUTCString();
-	const headers = {
-		"content-type": resolved.mime,
-		"content-length": info.size,
-		"cache-control": "no-cache",
-		"x-content-type-options": "nosniff",
-		etag,
-		"last-modified": lastModified
-	};
-	if (req.headers["if-none-match"] === etag) {
-		res.writeHead(304, headers);
-		res.end();
-		return;
-	}
-	if (req.method === "HEAD") {
-		res.writeHead(200, headers);
-		res.end();
-		return;
-	}
-	res.writeHead(200, headers);
-	try {
-		await pipeline(createReadStream(resolved.abs), res);
-	} catch {
-		res.destroy();
-	}
-}
-/** Read one deliberately small JSON request body. */
-async function readJson(req) {
-	if (req.headers["content-type"]?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") throw new Error("content type must be application/json");
-	const chunks = [];
-	let size = 0;
-	for await (const chunk of req) {
-		const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-		size += buffer.length;
-		if (size > MAX_JSON_BYTES) throw new Error("request body too large");
-		chunks.push(buffer);
-	}
-	return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-}
-/** Persist a background id (or null reset) and return the refreshed view. */
-async function setBackground(service, req, res) {
-	const body = await readJson(req);
-	if (typeof body !== "object" || body === null || Array.isArray(body)) {
-		json(res, FAIL(BAD_REQUEST), 400);
-		return;
-	}
-	const id = body.id;
-	if (id !== null && typeof id !== "string") {
-		json(res, FAIL(BAD_REQUEST), 400);
-		return;
-	}
-	try {
-		json(res, OK(await service.setBackgroundPhotoId(id)));
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		json(res, FAIL(message === "photo not found" ? NOT_FOUND$1 : {
-			code: "internal",
-			message
-		}), message === "photo not found" ? 404 : 500);
-	}
-}
-/** Persist the picked photo directory and return the refreshed view. */
-async function setDirectory(service, req, res) {
-	const body = await readJson(req);
-	if (typeof body !== "object" || body === null || Array.isArray(body)) {
-		json(res, FAIL(BAD_REQUEST), 400);
-		return;
-	}
-	const path = body.path;
-	if (typeof path !== "string" || path.trim() === "") {
-		json(res, FAIL(BAD_REQUEST), 400);
-		return;
-	}
-	try {
-		json(res, OK(await service.setPhotosDir(path)));
-	} catch (error) {
-		json(res, FAIL({
-			code: "internal",
-			message: error instanceof Error ? error.message : String(error)
-		}), 500);
-	}
-}
-/**
-* Register the album routes on the shared webserver.
-* @param ctx - context carrying the webServer service.
-* @param service - the album service backing the routes.
-* @returns disposers removing the routes.
-*/
-function registerAlbumRoutes(ctx, service) {
-	const handler = (req, res) => {
-		if (!isLoopbackRequest(req)) {
-			forbidden(res);
-			return;
-		}
-		const method = req.method ?? "GET";
-		let pathname;
-		try {
-			pathname = new URL(req.url ?? "/", "http://photo-album.local").pathname;
-		} catch {
-			res.writeHead(400);
-			res.end();
-			return;
-		}
-		const url = new URL(req.url ?? "/", "http://photo-album.local");
-		if (pathname === "/api/photo-album/list") {
-			if (method !== "GET" && method !== "HEAD") {
-				res.writeHead(405);
-				res.end();
-				return;
-			}
-			service.list().then((value) => json(res, OK(value)), (error) => json(res, FAIL({
-				code: "internal",
-				message: error instanceof Error ? error.message : String(error)
-			}), 500));
-			return;
-		}
-		if (pathname === "/api/photo-album/media") {
-			if (method !== "GET" && method !== "HEAD") {
-				res.writeHead(405);
-				res.end();
-				return;
-			}
-			serveMedia(service, req, url, res).catch(() => {
-				if (!res.headersSent) json(res, FAIL(NOT_FOUND$1), 404);
-			});
-			return;
-		}
-		if (pathname === "/api/photo-album/background") {
-			if (method !== "POST") {
-				res.writeHead(405);
-				res.end();
-				return;
-			}
-			setBackground(service, req, res).catch(() => json(res, FAIL(BAD_REQUEST), 400));
-			return;
-		}
-		if (pathname === "/api/photo-album/directory") {
-			if (method !== "POST") {
-				res.writeHead(405);
-				res.end();
-				return;
-			}
-			setDirectory(service, req, res).catch(() => json(res, FAIL(BAD_REQUEST), 400));
-			return;
-		}
-		res.writeHead(404);
-		res.end();
-	};
-	const dispose = ctx.webServer.register({
-		kind: "prefix",
-		path: "/api/photo-album",
-		handler
-	});
-	return () => {
-		dispose();
-	};
 }
 //#endregion
 //#region src/core/album.ts
@@ -422,7 +216,7 @@ function clampColumns(value) {
 	if (typeof value !== "number" || !Number.isFinite(value)) return 4;
 	return Math.min(12, Math.max(1, Math.round(value)));
 }
-const NOT_FOUND = {
+const NOT_FOUND$1 = {
 	code: "not-found",
 	message: "photo not found"
 };
@@ -457,10 +251,12 @@ async function scan(root, prefix, recursive) {
 var PhotoAlbumService = class {
 	getConfig;
 	samplesDir;
+	importsDir;
 	stateStore;
 	constructor(deps) {
 		this.getConfig = deps.getConfig;
 		this.samplesDir = deps.samplesDir;
+		this.importsDir = deps.importsDir;
 		this.stateStore = deps.stateStore;
 	}
 	/** The live settings slice (title/columns are forwarded to the browser). */
@@ -538,6 +334,62 @@ var PhotoAlbumService = class {
 		});
 		return this.list();
 	}
+	/**
+	* Copy one browser-selected PNG/JPEG into the managed local library and make
+	* it the active background. The original file is never modified.
+	*/
+	async importPhoto(photo) {
+		if (this.stateStore === void 0 || this.importsDir === void 0) throw new Error("album import store unavailable");
+		if (photo.data.length === 0) throw new Error("photo is empty");
+		if (photo.data.length > 26214400) throw new Error("photo exceeds 25 MB limit");
+		const original = photo.name.split(/[\\/]/).at(-1)?.normalize("NFKC") ?? "";
+		const extension = extname(original).toLowerCase();
+		const contentType = photo.contentType.split(";", 1)[0]?.trim().toLowerCase();
+		const png = extension === ".png" && contentType === "image/png" && photo.data.subarray(0, 8).equals(Buffer.from([
+			137,
+			80,
+			78,
+			71,
+			13,
+			10,
+			26,
+			10
+		]));
+		const jpeg = (extension === ".jpg" || extension === ".jpeg") && contentType === "image/jpeg" && photo.data.length >= 3 && photo.data[0] === 255 && photo.data[1] === 216 && photo.data[2] === 255;
+		if (!png && !jpeg) throw new Error("only valid PNG and JPG/JPEG files can be imported");
+		const rawStem = original.slice(0, -extension.length).replace(/[\u0000-\u001f\u007f:]/g, "_").replace(/^\.+/, "").trim();
+		const stem = (rawStem === "" ? "photo" : rawStem).slice(0, 120);
+		await mkdir(this.importsDir, {
+			recursive: true,
+			mode: 448
+		});
+		let savedName = `${stem}${extension}`;
+		let destination = join(this.importsDir, savedName);
+		try {
+			await writeFile(destination, photo.data, {
+				flag: "wx",
+				mode: 384
+			});
+		} catch (error) {
+			if (error.code !== "EEXIST") throw error;
+			savedName = `${stem}-${randomUUID().slice(0, 8)}${extension}`;
+			destination = join(this.importsDir, savedName);
+			await writeFile(destination, photo.data, {
+				flag: "wx",
+				mode: 384
+			});
+		}
+		try {
+			await this.stateStore.update({
+				photosDir: this.importsDir,
+				backgroundPhotoId: `${USER_PREFIX}${savedName}`
+			});
+		} catch (error) {
+			await unlink(destination).catch(() => {});
+			throw error;
+		}
+		return this.list();
+	}
 	/** Persist a valid photo id, or null to restore the skin default. */
 	async setBackgroundPhotoId(id) {
 		if (this.stateStore === void 0) throw new Error("album state store unavailable");
@@ -566,14 +418,14 @@ var PhotoAlbumService = class {
 		const slash = id.indexOf("/");
 		if (slash < 0) return {
 			ok: false,
-			error: NOT_FOUND
+			error: NOT_FOUND$1
 		};
 		const prefix = id.slice(0, slash + 1);
 		const rest = id.slice(slash + 1);
 		if (prefix === "sample/") {
 			if (rest.includes("/") || rest.includes("\\") || rest === "" || !isImageFile(rest)) return {
 				ok: false,
-				error: NOT_FOUND
+				error: NOT_FOUND$1
 			};
 			const abs = join(this.samplesDir, rest);
 			return this.statImage(abs);
@@ -582,18 +434,18 @@ var PhotoAlbumService = class {
 			const rawDir = (await this.effectiveConfig()).photosDir?.trim();
 			if (rawDir === void 0 || rawDir === "") return {
 				ok: false,
-				error: NOT_FOUND
+				error: NOT_FOUND$1
 			};
 			const abs = resolveInside(expandHome(rawDir), rest);
 			if (abs === null || !isImageFile(basename(abs))) return {
 				ok: false,
-				error: NOT_FOUND
+				error: NOT_FOUND$1
 			};
 			return this.statImage(abs);
 		}
 		return {
 			ok: false,
-			error: NOT_FOUND
+			error: NOT_FOUND$1
 		};
 	}
 	/** Stat an image path; a missing/non-file path answers not-found. */
@@ -601,7 +453,7 @@ var PhotoAlbumService = class {
 		try {
 			if (!(await stat(abs)).isFile()) return {
 				ok: false,
-				error: NOT_FOUND
+				error: NOT_FOUND$1
 			};
 			return {
 				ok: true,
@@ -611,7 +463,7 @@ var PhotoAlbumService = class {
 		} catch {
 			return {
 				ok: false,
-				error: NOT_FOUND
+				error: NOT_FOUND$1
 			};
 		}
 	}
@@ -625,6 +477,262 @@ var PhotoAlbumService = class {
 	}
 };
 //#endregion
+//#region src/host/routes.ts
+/**
+* /api/photo-album/* routes: one JSON endpoint for the album view and one
+* media endpoint streaming photo bytes. Every request is loopback-fenced first,
+* so a LAN-exposed deployment cannot enumerate or read photo files.
+* @module dsh-photo-album/host/routes
+*/
+const OK = (value) => ({
+	ok: true,
+	value
+});
+const FAIL = (error) => ({
+	ok: false,
+	error
+});
+const BAD_REQUEST = {
+	code: "bad-request",
+	message: "malformed request"
+};
+const NOT_FOUND = {
+	code: "not-found",
+	message: "photo not found"
+};
+const MAX_JSON_BYTES = 4096;
+/** Write one JSON envelope response. */
+function json(res, envelope, status = 200) {
+	res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+	res.end(JSON.stringify(envelope));
+}
+/** Write the shared non-loopback rejection. */
+function forbidden(res) {
+	res.writeHead(403, { "content-type": "application/json; charset=utf-8" });
+	res.end(JSON.stringify({ error: "forbidden: loopback-only" }));
+}
+/** Stream one photo with an etag + no-cache so re-renders revalidate cheaply. */
+async function serveMedia(service, req, url, res) {
+	const id = url.searchParams.get("id");
+	if (id === null || id === "") {
+		json(res, FAIL(BAD_REQUEST), 400);
+		return;
+	}
+	const resolved = await service.resolveMedia(id);
+	if (!resolved.ok) {
+		json(res, FAIL(resolved.error), 404);
+		return;
+	}
+	const info = await stat(resolved.abs);
+	const etag = `W/"${info.size}-${Math.floor(info.mtimeMs)}"`;
+	const lastModified = new Date(info.mtimeMs).toUTCString();
+	const headers = {
+		"content-type": resolved.mime,
+		"content-length": info.size,
+		"cache-control": "no-cache",
+		"x-content-type-options": "nosniff",
+		etag,
+		"last-modified": lastModified
+	};
+	if (req.headers["if-none-match"] === etag) {
+		res.writeHead(304, headers);
+		res.end();
+		return;
+	}
+	if (req.method === "HEAD") {
+		res.writeHead(200, headers);
+		res.end();
+		return;
+	}
+	res.writeHead(200, headers);
+	try {
+		await pipeline(createReadStream(resolved.abs), res);
+	} catch {
+		res.destroy();
+	}
+}
+/** Read one deliberately small JSON request body. */
+async function readJson(req) {
+	if (req.headers["content-type"]?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") throw new Error("content type must be application/json");
+	const chunks = [];
+	let size = 0;
+	for await (const chunk of req) {
+		const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+		size += buffer.length;
+		if (size > MAX_JSON_BYTES) throw new Error("request body too large");
+		chunks.push(buffer);
+	}
+	return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+/** Read one bounded raw image request body. */
+async function readImage(req) {
+	const declared = Number(req.headers["content-length"] ?? 0);
+	if (Number.isFinite(declared) && declared > 26214400) throw new Error("photo exceeds 25 MB limit");
+	const chunks = [];
+	let size = 0;
+	for await (const chunk of req) {
+		const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+		size += buffer.length;
+		if (size > 26214400) throw new Error("photo exceeds 25 MB limit");
+		chunks.push(buffer);
+	}
+	return Buffer.concat(chunks);
+}
+/** Persist a background id (or null reset) and return the refreshed view. */
+async function setBackground(service, req, res) {
+	const body = await readJson(req);
+	if (typeof body !== "object" || body === null || Array.isArray(body)) {
+		json(res, FAIL(BAD_REQUEST), 400);
+		return;
+	}
+	const id = body.id;
+	if (id !== null && typeof id !== "string") {
+		json(res, FAIL(BAD_REQUEST), 400);
+		return;
+	}
+	try {
+		json(res, OK(await service.setBackgroundPhotoId(id)));
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		json(res, FAIL(message === "photo not found" ? NOT_FOUND : {
+			code: "internal",
+			message
+		}), message === "photo not found" ? 404 : 500);
+	}
+}
+/** Persist the picked photo directory and return the refreshed view. */
+async function setDirectory(service, req, res) {
+	const body = await readJson(req);
+	if (typeof body !== "object" || body === null || Array.isArray(body)) {
+		json(res, FAIL(BAD_REQUEST), 400);
+		return;
+	}
+	const path = body.path;
+	if (typeof path !== "string" || path.trim() === "") {
+		json(res, FAIL(BAD_REQUEST), 400);
+		return;
+	}
+	try {
+		json(res, OK(await service.setPhotosDir(path)));
+	} catch (error) {
+		json(res, FAIL({
+			code: "internal",
+			message: error instanceof Error ? error.message : String(error)
+		}), 500);
+	}
+}
+/** Import a directly selected PNG/JPEG and immediately use it as background. */
+async function importPhoto(service, req, url, res) {
+	const name = url.searchParams.get("name");
+	const contentType = req.headers["content-type"]?.split(";", 1)[0]?.trim().toLowerCase();
+	if (name === null || name === "" || name.length > 255 || contentType !== "image/png" && contentType !== "image/jpeg") {
+		json(res, FAIL({
+			code: "unsupported-format",
+			message: "choose a PNG or JPG/JPEG image"
+		}), 415);
+		return;
+	}
+	try {
+		const value = await service.importPhoto({
+			name,
+			contentType,
+			data: await readImage(req)
+		});
+		json(res, OK(value));
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		const status = message.includes("25 MB") ? 413 : message.includes("valid PNG") ? 415 : message.includes("empty") ? 400 : 500;
+		json(res, FAIL({
+			code: status === 413 ? "too-large" : status === 415 ? "unsupported-format" : status === 400 ? "bad-request" : "internal",
+			message
+		}), status);
+	}
+}
+/**
+* Register the album routes on the shared webserver.
+* @param ctx - context carrying the webServer service.
+* @param service - the album service backing the routes.
+* @returns disposers removing the routes.
+*/
+function registerAlbumRoutes(ctx, service) {
+	const handler = (req, res) => {
+		if (!isLoopbackRequest(req)) {
+			forbidden(res);
+			return;
+		}
+		const method = req.method ?? "GET";
+		let pathname;
+		try {
+			pathname = new URL(req.url ?? "/", "http://photo-album.local").pathname;
+		} catch {
+			res.writeHead(400);
+			res.end();
+			return;
+		}
+		const url = new URL(req.url ?? "/", "http://photo-album.local");
+		if (pathname === "/api/photo-album/list") {
+			if (method !== "GET" && method !== "HEAD") {
+				res.writeHead(405);
+				res.end();
+				return;
+			}
+			service.list().then((value) => json(res, OK(value)), (error) => json(res, FAIL({
+				code: "internal",
+				message: error instanceof Error ? error.message : String(error)
+			}), 500));
+			return;
+		}
+		if (pathname === "/api/photo-album/media") {
+			if (method !== "GET" && method !== "HEAD") {
+				res.writeHead(405);
+				res.end();
+				return;
+			}
+			serveMedia(service, req, url, res).catch(() => {
+				if (!res.headersSent) json(res, FAIL(NOT_FOUND), 404);
+			});
+			return;
+		}
+		if (pathname === "/api/photo-album/background") {
+			if (method !== "POST") {
+				res.writeHead(405);
+				res.end();
+				return;
+			}
+			setBackground(service, req, res).catch(() => json(res, FAIL(BAD_REQUEST), 400));
+			return;
+		}
+		if (pathname === "/api/photo-album/directory") {
+			if (method !== "POST") {
+				res.writeHead(405);
+				res.end();
+				return;
+			}
+			setDirectory(service, req, res).catch(() => json(res, FAIL(BAD_REQUEST), 400));
+			return;
+		}
+		if (pathname === "/api/photo-album/import") {
+			if (method !== "POST") {
+				res.writeHead(405);
+				res.end();
+				return;
+			}
+			importPhoto(service, req, url, res);
+			return;
+		}
+		res.writeHead(404);
+		res.end();
+	};
+	const dispose = ctx.webServer.register({
+		kind: "prefix",
+		path: "/api/photo-album",
+		handler
+	});
+	return () => {
+		dispose();
+	};
+}
+//#endregion
 //#region src/host/state-store.ts
 /**
 * Small plugin-owned state document for choices that must work even when the
@@ -637,6 +745,10 @@ function defaultAlbumStatePath(environment = process.env, userHome = homedir()) 
 	const configured = environment.DSH_HOME?.trim();
 	const dshHome = configured !== void 0 && configured !== "" ? configured : join(userHome, ".dsh");
 	return join(dshHome, "storages", "dsh-photo-album.json");
+}
+/** Managed local library for images selected through the file picker. */
+function defaultAlbumImportsPath(environment = process.env, userHome = homedir()) {
+	return join(dirname(defaultAlbumStatePath(environment, userHome)), "dsh-photo-album", "photos");
 }
 /** Narrow an untrusted parsed JSON value into the supported state fields. */
 function decodeState(value) {
@@ -705,7 +817,7 @@ const PHOTO_ALBUM_SETTINGS_NAMESPACE = "photo-album";
 /** Order of the announcement section within the tool-guidance band. */
 const SECTION_ORDER = 215;
 /** Model-facing announcement: plugin presence, capabilities, and limits. */
-const PHOTO_ALBUM_GUIDANCE = "本机已安装 dsh-photo-album 插件（DSH Web GUI 的生活相册）：侧边栏「相册」入口，点击后中间列切换为相册网格 + 灯箱大图。能力：读取本地照片目录（设置里配置 photosDir，支持子目录递归、按修改时间倒序），或回退到内置示例照片；照片可在网格或灯箱中设为 DSH 背景并持久化，也可恢复皮肤默认背景；点照片打开灯箱（左右翻页、键盘方向键、ESC 关闭）。数据源为宿主进程经 /api/photo-album/* 路由提供（仅回环可访问）；照片目录/标题/列数等可在设置页「相册」中配置。用户提到「相册 / 生活照片 / 照片 / photo album」时即指本插件，请据此协作。";
+const PHOTO_ALBUM_GUIDANCE = "本机已安装 dsh-photo-album 插件（DSH Web GUI 的生活相册）：侧边栏「相册」入口，点击后中间列切换为相册网格 + 灯箱大图。能力：可直接选择 PNG/JPG 文件、复制进插件本地图库并立即设为背景；也可读取本地照片目录（支持子目录递归、按修改时间倒序），或回退到内置示例照片。照片可在网格或灯箱中设为 DSH 背景并持久化，也可恢复皮肤默认背景；点照片打开灯箱（左右翻页、键盘方向键、ESC 关闭）。数据源为宿主进程经 /api/photo-album/* 路由提供（仅回环可访问）；照片目录/标题/列数等可在设置页「相册」中配置。用户提到「相册 / 生活照片 / 照片 / photo album」时即指本插件，请据此协作。";
 /** Plugin config, validated by the same-named schemastery schema. */
 const Config = z.object({
 	photosDir: z.string().default(""),
@@ -733,6 +845,7 @@ function applyImpl(ctx, config = {}) {
 	const service = new PhotoAlbumService({
 		getConfig: () => current(),
 		samplesDir: samplesDir(import.meta.url),
+		importsDir: defaultAlbumImportsPath(),
 		stateStore: new AlbumStateStore(defaultAlbumStatePath())
 	});
 	let disposeRoutes;

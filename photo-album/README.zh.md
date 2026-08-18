@@ -11,9 +11,10 @@
 ## 功能
 
 - **侧边栏入口**：侧边栏内、新会话按钮下方注入「相册」入口行（宽栏显示图标+文字，折叠 rail 显示纯图标，随 DSH 皮肤 token 自适应）。
-- **相册网格**：照片按修改时间倒序排布，`columns` 控制每行列数；每张图懒加载，悬浮显示文件名。
+- **相册网格**：照片按修改时间倒序排布，`columns` 控制每行列数；每张图懒加载，悬浮显示文件名。PNG、JPG/JPEG 是一等支持格式，同时支持 WebP、GIF、AVIF、BMP 与 SVG。
 - **灯箱大图**：点照片打开灯箱，左右按钮或键盘方向键翻页、`Esc` 关闭，右上角「×」退出；顶部显示「当前张 / 总数」。
 - **持久背景**：网格卡片和灯箱均提供「设为背景」；当前照片有明确状态，顶部可「恢复默认背景」。保存的是不透明照片 ID，不是图片字节，因此 macOS Desktop 重启后即使端口变化也能恢复。
+- **直接选择 PNG/JPG**：顶部「选择 PNG/JPG 设为背景…」会打开系统文件选择器；选中的图片复制到 `DSH_HOME/storages/dsh-photo-album/photos/` 并立即应用。单文件上限 25 MB。
 - **两种照片来源**：
   - 配置了 `photosDir` → 递归扫描该目录（`recursive` 开关控制是否进子目录），展示其中的 jpg/png/gif/webp/svg/avif/bmp 图片。
   - 未配置或目录不可读 → 回退内置示例照片，并给出提示（目录不存在/不是目录/无权限时带 `warning`）。
@@ -25,7 +26,7 @@
 ```
 package.json / tsconfig*.json / tsdown.config.ts / vitest.config.ts   # 独立仓库构建
 cordis.patch.yml                          # 把插件行插入 web profile 组合
-assets/samples/*.svg                      # 内置示例照片
+assets/samples/*.{png,jpg,svg}            # 内置多格式示例照片
 src/index.ts                              # host 半边：设置段 + 路由 + 服务 + 系统提示词段
 src/mount-once.ts                         # host 单实例守卫
 src/core/album.ts                         # 目录扫描 / mime / 路径守卫（纯函数，可单测）
@@ -67,13 +68,17 @@ dsh plugin --profile desktop add "$PWD/photo-album"
 
 ## 放上自己的照片
 
+只换一张背景时，打开侧边栏 **相册**，点击顶部 **选择 PNG/JPG 设为背景…**，可在 Finder 中直接点选 `.png`、`.jpg` 或 `.jpeg` 文件。插件会把它复制进自己的本地图库并立即设为背景。
+
+需要浏览整个文件夹时：
+
 1. 打开 DSH 设置 → **相册**。
 2. 把「照片目录」填成你的照片文件夹绝对路径（支持 `~/` 开头，例如 `~/Pictures/生活照`）。
 3. 需要包含子文件夹就打开「递归子目录」，调整「每行列数」到合适值。
 4. 保存，重新打开侧边栏「相册」即刷新（每次打开都会重新扫描目录）。
 5. 在网格卡片或灯箱中点击「设为背景」；顶部「恢复默认背景」返回山田内置夜景。
 
-没有照片目录时，插件展示内置的 6 张示例图（`assets/samples/`）。
+没有照片目录时，插件展示内置的 6 张示例图（`assets/samples/`），其中直接包含真实 PNG 和 JPG 文件，安装后即可看到并设为背景。
 
 ## 构建
 
@@ -89,7 +94,7 @@ pnpm run build        # tsdown 产出 lib/index.js（host）+ lib/client.js（�
 ## 隐私与安全
 
 - `/api/photo-album/*` 仅接受 loopback 请求，媒体 id 经过目录穿越防护。
-- 用户照片不会复制到本仓库，也不会上传或写入浏览器存储；插件状态只保存照片目录与 `sample/...` 或 `user/...` 形式的不透明 id，并以临时文件 + rename 原子更新。
+- 直接选择的 PNG/JPG 只复制到本机 `DSH_HOME/storages/dsh-photo-album/photos/`；目录模式不复制源照片。所有照片都不会上传、写入浏览器存储或复制进本仓库；状态文件以临时文件 + rename 原子更新。
 - 照片被删除、目录变化、伴侣包停用或响应格式异常时，山田皮肤回退到内置夜景。
 
 ## 许可

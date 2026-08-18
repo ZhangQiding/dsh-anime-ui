@@ -6,8 +6,9 @@
  * @module dsh-photo-album/host/service
  */
 
-import { readdir, stat } from 'node:fs/promises'
-import { basename, join } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { mkdir, readdir, stat, unlink, writeFile } from 'node:fs/promises'
+import { basename, extname, join } from 'node:path'
 import { isImageFile, listImageFiles, mimeForFile, resolveInside } from '../core/album.ts'
 import type { AlbumError, AlbumView, PhotoEntry } from '../core/types.ts'
 import type { AlbumStateStore } from './state-store.ts'
@@ -32,6 +33,7 @@ export const SAMPLE_PREFIX = 'sample/'
 export const USER_PREFIX = 'user/'
 
 const DEFAULT_TITLE = '生活相册'
+export const MAX_IMPORTED_PHOTO_BYTES = 25 * 1024 * 1024
 
 /** Clamp a possibly-missing columns value into the valid 1–12 range. */
 function clampColumns(value: number | undefined): number {
@@ -41,6 +43,13 @@ function clampColumns(value: number | undefined): number {
 
 /** Result of resolving a photo id to a file the media route can stream. */
 export type MediaResolve = { ok: true; abs: string; mime: string } | { ok: false; error: AlbumError }
+
+/** Browser-selected raster image copied into the plugin-managed library. */
+export interface ImportedPhoto {
+  name: string
+  contentType: string
+  data: Buffer
+}
 
 const NOT_FOUND: AlbumError = { code: 'not-found', message: 'photo not found' }
 
@@ -78,11 +87,13 @@ async function scan(root: string, prefix: string, recursive: boolean): Promise<P
 export class PhotoAlbumService {
   private readonly getConfig: () => AlbumConfig
   private readonly samplesDir: string
+  private readonly importsDir: string | undefined
   private readonly stateStore: AlbumStateStore | undefined
 
-  constructor(deps: { getConfig: () => AlbumConfig; samplesDir: string; stateStore?: AlbumStateStore }) {
+  constructor(deps: { getConfig: () => AlbumConfig; samplesDir: string; importsDir?: string; stateStore?: AlbumStateStore }) {
     this.getConfig = deps.getConfig
     this.samplesDir = deps.samplesDir
+    this.importsDir = deps.importsDir
     this.stateStore = deps.stateStore
   }
 
@@ -150,6 +161,53 @@ export class PhotoAlbumService {
     if (normalized === '') throw new Error('photo directory must not be empty')
     if (this.stateStore === undefined) throw new Error('album state store unavailable')
     await this.stateStore.update({ photosDir: normalized, backgroundPhotoId: null })
+    return this.list()
+  }
+
+  /**
+   * Copy one browser-selected PNG/JPEG into the managed local library and make
+   * it the active background. The original file is never modified.
+   */
+  async importPhoto(photo: ImportedPhoto): Promise<AlbumView> {
+    if (this.stateStore === undefined || this.importsDir === undefined) {
+      throw new Error('album import store unavailable')
+    }
+    if (photo.data.length === 0) throw new Error('photo is empty')
+    if (photo.data.length > MAX_IMPORTED_PHOTO_BYTES) throw new Error('photo exceeds 25 MB limit')
+    const original = photo.name.split(/[\\/]/).at(-1)?.normalize('NFKC') ?? ''
+    const extension = extname(original).toLowerCase()
+    const contentType = photo.contentType.split(';', 1)[0]?.trim().toLowerCase()
+    const png = extension === '.png' && contentType === 'image/png'
+      && photo.data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    const jpeg = (extension === '.jpg' || extension === '.jpeg') && contentType === 'image/jpeg'
+      && photo.data.length >= 3 && photo.data[0] === 0xff && photo.data[1] === 0xd8 && photo.data[2] === 0xff
+    if (!png && !jpeg) throw new Error('only valid PNG and JPG/JPEG files can be imported')
+
+    const rawStem = original.slice(0, -extension.length)
+      .replace(/[\u0000-\u001f\u007f:]/g, '_')
+      .replace(/^\.+/, '')
+      .trim()
+    const stem = (rawStem === '' ? 'photo' : rawStem).slice(0, 120)
+    await mkdir(this.importsDir, { recursive: true, mode: 0o700 })
+    let savedName = `${stem}${extension}`
+    let destination = join(this.importsDir, savedName)
+    try {
+      await writeFile(destination, photo.data, { flag: 'wx', mode: 0o600 })
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      savedName = `${stem}-${randomUUID().slice(0, 8)}${extension}`
+      destination = join(this.importsDir, savedName)
+      await writeFile(destination, photo.data, { flag: 'wx', mode: 0o600 })
+    }
+    try {
+      await this.stateStore.update({
+        photosDir: this.importsDir,
+        backgroundPhotoId: `${USER_PREFIX}${savedName}`,
+      })
+    } catch (error) {
+      await unlink(destination).catch(() => {})
+      throw error
+    }
     return this.list()
   }
 

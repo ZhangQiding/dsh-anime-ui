@@ -5,7 +5,7 @@
  * @module dsh-photo-album/client/PhotoAlbum
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react'
 import type { AlbumView } from '../core/types.ts'
 import { fetchAlbum, mediaUrl } from './api.ts'
 import { emitBackgroundChange, emitBackgroundFromAlbumView } from './background-selection.ts'
@@ -18,6 +18,8 @@ export interface AlbumGalleryDeps {
   pickDirectory: () => Promise<string | null>
   /** Persist the picked directory as the album's photo source. */
   setPhotosDir: (path: string) => Promise<void>
+  /** Copy a selected PNG/JPEG locally and immediately make it the background. */
+  importPhoto: (file: File) => Promise<AlbumView>
   /** Persist the selected photo id; an empty string restores the skin default. */
   setBackgroundPhotoId: (id: string) => Promise<void>
 }
@@ -33,6 +35,9 @@ export function AlbumGallery({ controller, deps }: { controller: AlbumController
   const [index, setIndex] = useState<number | null>(null)
   const [choosing, setChoosing] = useState(false)
   const [chooseError, setChooseError] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
   const [backgroundId, setBackgroundId] = useState<string | null>(null)
   const [backgroundBusy, setBackgroundBusy] = useState<string | null>(null)
   const [backgroundError, setBackgroundError] = useState<string | null>(null)
@@ -92,6 +97,26 @@ export function AlbumGallery({ controller, deps }: { controller: AlbumController
     }
   }, [deps, load])
 
+  const importSelectedPhoto = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget
+    const file = input.files?.[0]
+    input.value = ''
+    if (file === undefined) return
+    setImportError(null)
+    setImporting(true)
+    try {
+      const view = await deps.importPhoto(file)
+      setAlbum(view)
+      setBackgroundId(view.backgroundPhotoId ?? null)
+      emitBackgroundFromAlbumView(view)
+      setError(null)
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setImporting(false)
+    }
+  }, [deps])
+
   const photos = album?.photos ?? []
   const columns = album?.columns ?? 4
   const showSamples = album?.source === 'samples'
@@ -134,6 +159,21 @@ export function AlbumGallery({ controller, deps }: { controller: AlbumController
             : null}
         </div>
         <div className="dsh-pa-album-actions">
+          <input
+            ref={fileInput}
+            className="dsh-pa-file-input"
+            type="file"
+            accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+            onChange={(event) => { void importSelectedPhoto(event) }}
+          />
+          <button
+            type="button"
+            className="dsh-pa-import"
+            disabled={importing || backgroundBusy !== null}
+            onClick={() => { fileInput.current?.click() }}
+          >
+            {importing ? t('gallery.importingPhoto') : t('gallery.importPhoto')}
+          </button>
           {backgroundId !== null
             ? <button type="button" className="dsh-pa-background-reset" disabled={backgroundBusy !== null} onClick={() => { void resetBackground() }}>{t('gallery.resetBackground')}</button>
             : null}
@@ -146,7 +186,10 @@ export function AlbumGallery({ controller, deps }: { controller: AlbumController
       {showSamples && !loading && error === null
         ? (
           <div className="dsh-pa-samples-callout">
-            <span className="dsh-pa-samples-text">{t('gallery.samplesHint')}</span>
+            <span className="dsh-pa-samples-copy">
+              <span className="dsh-pa-samples-text">{t('gallery.samplesHint')}</span>
+              <span className="dsh-pa-formats-hint">{t('gallery.formatsHint')}</span>
+            </span>
             <button type="button" className="dsh-pa-choose" disabled={choosing} onClick={() => { void choose() }}>
               {choosing ? '…' : t('gallery.chooseDirectory')}
             </button>
@@ -156,6 +199,10 @@ export function AlbumGallery({ controller, deps }: { controller: AlbumController
 
       {chooseError !== null
         ? <p className="dsh-pa-invalid">{t('gallery.chooseError', { error: chooseError })}</p>
+        : null}
+
+      {importError !== null
+        ? <p className="dsh-pa-invalid">{t('gallery.importError', { error: importError })}</p>
         : null}
 
       {backgroundError !== null

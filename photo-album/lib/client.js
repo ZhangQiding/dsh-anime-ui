@@ -128,6 +128,28 @@ window.__ModuleLoader__.load({
 		function persistAlbumBackground(id) {
 			return postAlbum("/api/photo-album/background", { id });
 		}
+		/** Copy one directly selected PNG/JPEG into the managed local album. */
+		async function importAlbumPhoto(file) {
+			const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+			const contentType = extension === ".png" ? "image/png" : extension === ".jpg" || extension === ".jpeg" ? "image/jpeg" : file.type;
+			let response;
+			try {
+				response = await fetch(`/api/photo-album/import?name=${encodeURIComponent(file.name)}`, {
+					method: "POST",
+					headers: { "content-type": contentType },
+					body: file
+				});
+			} catch {
+				return {
+					ok: false,
+					error: {
+						code: "internal",
+						message: "album route unavailable"
+					}
+				};
+			}
+			return decodeAlbum(response);
+		}
 		//#endregion
 		//#region src/client/background-selection.ts
 		/** Cross-plugin contract used by the album and presentation skins. */
@@ -170,7 +192,11 @@ window.__ModuleLoader__.load({
 			"gallery.loading": "正在读取照片…",
 			"gallery.empty": "这里还没有照片。",
 			"gallery.samplesHint": "当前展示内置示例照片；点下方按钮选择你的照片文件夹，或到「设置 → 相册」里配置。",
+			"gallery.formatsHint": "支持 PNG、JPG/JPEG、WebP、GIF、AVIF、BMP 和 SVG。",
 			"gallery.chooseDirectory": "选择照片目录…",
+			"gallery.importPhoto": "选择 PNG/JPG 设为背景…",
+			"gallery.importingPhoto": "正在导入…",
+			"gallery.importError": "导入照片失败：{error}",
 			"gallery.chooseError": "选择目录失败：{error}",
 			"gallery.directoryHint": "照片来自目录：{dir}",
 			"gallery.warning": "提示：{warning}",
@@ -218,7 +244,11 @@ window.__ModuleLoader__.load({
 			"gallery.loading": "Loading photos…",
 			"gallery.empty": "No photos here yet.",
 			"gallery.samplesHint": "Showing built-in sample photos; click the button below to choose your photos folder, or configure it in Settings → Album.",
+			"gallery.formatsHint": "Supports PNG, JPG/JPEG, WebP, GIF, AVIF, BMP, and SVG.",
 			"gallery.chooseDirectory": "Choose photos directory…",
+			"gallery.importPhoto": "Choose PNG/JPG as background…",
+			"gallery.importingPhoto": "Importing…",
+			"gallery.importError": "Could not import photo: {error}",
 			"gallery.chooseError": "Could not choose a directory: {error}",
 			"gallery.directoryHint": "Photos from: {dir}",
 			"gallery.warning": "Note: {warning}",
@@ -293,6 +323,9 @@ window.__ModuleLoader__.load({
 			const [index, setIndex] = (0, react.useState)(null);
 			const [choosing, setChoosing] = (0, react.useState)(false);
 			const [chooseError, setChooseError] = (0, react.useState)(null);
+			const [importing, setImporting] = (0, react.useState)(false);
+			const [importError, setImportError] = (0, react.useState)(null);
+			const fileInput = (0, react.useRef)(null);
 			const [backgroundId, setBackgroundId] = (0, react.useState)(null);
 			const [backgroundBusy, setBackgroundBusy] = (0, react.useState)(null);
 			const [backgroundError, setBackgroundError] = (0, react.useState)(null);
@@ -343,6 +376,25 @@ window.__ModuleLoader__.load({
 					setChoosing(false);
 				}
 			}, [deps, load]);
+			const importSelectedPhoto = (0, react.useCallback)(async (event) => {
+				const input = event.currentTarget;
+				const file = input.files?.[0];
+				input.value = "";
+				if (file === void 0) return;
+				setImportError(null);
+				setImporting(true);
+				try {
+					const view = await deps.importPhoto(file);
+					setAlbum(view);
+					setBackgroundId(view.backgroundPhotoId ?? null);
+					emitBackgroundFromAlbumView(view);
+					setError(null);
+				} catch (err) {
+					setImportError(err instanceof Error ? err.message : String(err));
+				} finally {
+					setImporting(false);
+				}
+			}, [deps]);
 			const photos = album?.photos ?? [];
 			const columns = album?.columns ?? 4;
 			const showSamples = album?.source === "samples";
@@ -393,6 +445,24 @@ window.__ModuleLoader__.load({
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 							className: "dsh-pa-album-actions",
 							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									ref: fileInput,
+									className: "dsh-pa-file-input",
+									type: "file",
+									accept: ".png,.jpg,.jpeg,image/png,image/jpeg",
+									onChange: (event) => {
+										importSelectedPhoto(event);
+									}
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: "dsh-pa-import",
+									disabled: importing || backgroundBusy !== null,
+									onClick: () => {
+										fileInput.current?.click();
+									},
+									children: importing ? t("gallery.importingPhoto") : t("gallery.importPhoto")
+								}),
 								backgroundId !== null ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 									type: "button",
 									className: "dsh-pa-background-reset",
@@ -429,9 +499,15 @@ window.__ModuleLoader__.load({
 					}),
 					showSamples && !loading && error === null ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						className: "dsh-pa-samples-callout",
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: "dsh-pa-samples-text",
-							children: t("gallery.samplesHint")
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+							className: "dsh-pa-samples-copy",
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: "dsh-pa-samples-text",
+								children: t("gallery.samplesHint")
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: "dsh-pa-formats-hint",
+								children: t("gallery.formatsHint")
+							})]
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 							type: "button",
 							className: "dsh-pa-choose",
@@ -445,6 +521,10 @@ window.__ModuleLoader__.load({
 					chooseError !== null ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 						className: "dsh-pa-invalid",
 						children: t("gallery.chooseError", { error: chooseError })
+					}) : null,
+					importError !== null ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						className: "dsh-pa-invalid",
+						children: t("gallery.importError", { error: importError })
 					}) : null,
 					backgroundError !== null ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 						className: "dsh-pa-invalid",
@@ -1445,8 +1525,32 @@ html[data-dsh-photoalbum-active]:not([data-dsh-taskboard-active]):not([data-dsh-
 .dsh-pa-album-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
   flex: none;
+}
+.dsh-pa-file-input {
+  display: none;
+}
+.dsh-pa-import {
+  appearance: none;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-brand-primary);
+  border-radius: 8px;
+  color: var(--dsw-alias-label-primary);
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.dsh-pa-import:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 28%, transparent);
+}
+.dsh-pa-import:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 .dsh-pa-album-count {
   color: var(--dsw-alias-label-secondary);
@@ -1506,6 +1610,18 @@ html[data-dsh-photoalbum-active]:not([data-dsh-taskboard-active]):not([data-dsh-
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
   line-height: 1.5;
+}
+.dsh-pa-samples-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dsh-pa-formats-hint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 1.4;
 }
 .dsh-pa-choose {
   appearance: none;
@@ -2009,6 +2125,11 @@ html[data-dsh-photoalbum-active]:not([data-dsh-taskboard-active]):not([data-dsh-
 						setPhotosDir: async (path) => {
 							const result = await persistAlbumDirectory(path);
 							if (!result.ok) throw new Error(result.error.message);
+						},
+						importPhoto: async (file) => {
+							const result = await importAlbumPhoto(file);
+							if (!result.ok) throw new Error(result.error.message);
+							return result.value;
 						},
 						setBackgroundPhotoId: async (id) => {
 							const result = await persistAlbumBackground(id === "" ? null : id);

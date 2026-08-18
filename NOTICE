@@ -16,5 +16,6 @@ prohibited, and adaptations must use the same license. See
 `yamada-night-shift/NOTICE` for the package-level notice.
 
 The independent `photo-album/` companion is distributed under the MIT License
-in `photo-album/LICENSE`. It persists only opaque local photo ids; user photo
-bytes are not redistributed with this repository.
+in `photo-album/LICENSE`. It persists opaque local photo ids and, only when the
+user explicitly uses the file picker, a managed local copy below DSH_HOME;
+user photo bytes are never redistributed with this repository.

@@ -31,6 +31,14 @@ export function defaultAlbumStatePath(
   return join(dshHome, 'storages', 'dsh-photo-album.json')
 }
 
+/** Managed local library for images selected through the file picker. */
+export function defaultAlbumImportsPath(
+  environment: NodeJS.ProcessEnv = process.env,
+  userHome: string = homedir(),
+): string {
+  return join(dirname(defaultAlbumStatePath(environment, userHome)), 'dsh-photo-album', 'photos')
+}
+
 /** Narrow an untrusted parsed JSON value into the supported state fields. */
 function decodeState(value: unknown): AlbumState {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}

@@ -67,3 +67,24 @@ export function persistAlbumDirectory(path: string): Promise<AlbumEnvelope<Album
 export function persistAlbumBackground(id: string | null): Promise<AlbumEnvelope<AlbumView>> {
   return postAlbum('/api/photo-album/background', { id })
 }
+
+/** Copy one directly selected PNG/JPEG into the managed local album. */
+export async function importAlbumPhoto(file: File): Promise<AlbumEnvelope<AlbumView>> {
+  const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+  const contentType = extension === '.png'
+    ? 'image/png'
+    : extension === '.jpg' || extension === '.jpeg'
+      ? 'image/jpeg'
+      : file.type
+  let response: Response
+  try {
+    response = await fetch(`/api/photo-album/import?name=${encodeURIComponent(file.name)}`, {
+      method: 'POST',
+      headers: { 'content-type': contentType },
+      body: file,
+    })
+  } catch {
+    return { ok: false, error: { code: 'internal', message: 'album route unavailable' } }
+  }
+  return decodeAlbum(response)
+}

@@ -7,11 +7,11 @@
 
 | 验收项 | 证据 |
 | --- | --- |
-| 迁移完整性 | `pic/` 15 张、`assets/ui-history/generated/` 18 张、`assets/ui-history/input-references/` 3 张均在当前仓库；加上最终素材、真实预览、卸载与相册背景验收证据，共 46 张位图文件。 |
+| 迁移完整性 | `pic/` 15 张、`assets/ui-history/generated/` 18 张、`assets/ui-history/input-references/` 3 张均在当前仓库；加上最终素材、真实预览、PNG/JPG 示例及验收证据，共 49 张位图文件。 |
 | 插件结构 | `skin.json`、`cordis.patch.yml`、`dsh.client`、`lib/index.js`、`lib/client.js`、LICENSE、NOTICE 均存在。 |
-| 构建 | Node 22.23.1 构建两个包成功；山田 `lib/client.js` 为 312,038 bytes，相册 `lib/client.js` 为 64,667 bytes。 |
-| 生命周期 | 山田 Vitest 27/27、相册 Vitest 16/16 通过。除 scope lease、重复激活、DOM/CSSOM/还原外，覆盖相册状态原子落盘、路径守卫、原生选择目录后的媒体解析、目录/背景写入、冷启动路由重试、状态重播及原生主题标记变化时保持已选背景。 |
-| 发布包 | 两包 `npm pack --dry-run --json` 通过：山田 27 个文件（760,009 bytes tarball），相册 39 个文件（64,247 bytes tarball）；相册文件权限统一为 0644/0755，未夹带旧 `lib/types`。 |
+| 构建 | Node 22.23.1 构建两个包成功；山田 `lib/client.js` 为 312,038 bytes，相册 `lib/client.js` 为 68,804 bytes、Host `lib/index.js` 为 30,139 bytes。 |
+| 生命周期 | 山田 Vitest 27/27、相册 Vitest 17/17 通过。除 scope lease、重复激活、DOM/CSSOM/还原外，覆盖相册状态原子落盘、路径守卫、原生选择目录后的媒体解析、PNG/JPEG 魔数与 MIME 校验、受管图库导入、目录/背景写入、冷启动路由重试及状态重播。 |
+| 发布包 | 两包 `npm pack --dry-run --json` 通过：山田 27 个文件（760,009 bytes tarball），相册 `0.2.1` 包为 304,981 bytes；相册文件权限统一为 0644/0755，未夹带旧 `lib/types`。 |
 | 远程素材 | 源码测试与真实服务 bundle 检查均仅发现两处 `data:image/webp;base64,`；唯一 `http://` 是 SVG XML namespace。 |
 | DSH Web 注册 | Web profile `--dump-config` 显示 `ui-skin-yamada-night-shift`、正确包名、`disabled: false`，无缺失 patch 条目警告。 |
 | DSH Web 运行时 | 临时真实 DSH Web 启动于 loopback 随机端口；`window.__DSH_BOOT__.entries` 包含山田包。实际 HTTP 提供的 client bundle 与仓库 `lib/client.js` 均为 307,766 bytes，SHA-256 同为 `0099df1e278b8b88aaf8ca4fbfce773ff2432fc32f5526741ef092a0cd3ead0d`。 |
@@ -24,6 +24,8 @@
 | 相册背景冷启动 | 选择以原子 JSON 写入实际有效 `DSH_HOME/storages/dsh-photo-album.json`。完整退出 Desktop 后重开，随机端口变为 `61085`，紫色背景在相册 UI 打开前已自动恢复；打开相册仍显示 `sample-6.svg` 为“当前背景”。证据图：`docs/verification/album-background-cold-start.jpeg`。boot graph 同时包含 `dsh-photo-album` 与山田皮肤；实际服务 bundle 与仓库文件 SHA-256 分别同为 `ffd852498891c66b9cdd7f699a7842ae329f81b11ad10713685434d7bbe8130c`、`f52456bb02ebe9226678a82abd17a9952929cf3d3f1efcdbc4b1652ae8721394`。 |
 | 相册背景恢复 | 点击“恢复默认背景”后山田内置夜景即时回归，全部照片卡片恢复“设为背景”，状态文件仅保留 `{ "version": 1 }`。证据图：`docs/verification/album-background-reset.jpeg`；发布收尾保留此默认状态。 |
 | 最终交付进程 | 补齐“原生目录选择后媒体路由也读取插件状态”的 Host 修复后，再次完整退出并打开 DSH Desktop，端口变为 `63506`，默认山田夜景与相册入口均正常。boot graph 的相册 rev 为 `95d4ee14e033`、山田 rev 为 `282dd386d329`；实际服务 client bundle 与仓库 SHA-256 分别同为 `ffd852498891c66b9cdd7f699a7842ae329f81b11ad10713685434d7bbe8130c`、`dcad89e054d9c26c7b6f09df60e38db997243850dcd096be9712e8058d426020`。 |
+| PNG/JPG 文件选择器 | `dsh-photo-album@0.2.1` 在真实 DSH Desktop 中新增顶部“选择 PNG/JPG 设为背景…”按钮。macOS Finder 文件面板直接选中 `sample-1.png` 后即时显示蓝色背景；随后直接选中 `sample-2.jpg` 即时显示粉色背景，相册同时保留两张受管图片且 JPG 标为“当前背景”。证据图：`docs/verification/album-png-jpg-picker.jpeg`。 |
+| PNG/JPG 路由与冷启动 | 直接选择的文件复制到实际有效 `DSH_HOME/storages/dsh-photo-album/photos/`。Desktop 端口 `56518` 的媒体响应分别为 `image/png`（196,419 bytes）和 `image/jpeg`（51,589 bytes）；完整退出重开后端口变为 `57410`，JPG 粉色背景在打开相册前自动恢复。随后点击“恢复默认背景”，保留本地图库但清除背景选择；补齐空文件、隐藏文件名及大写扩展名防护并再次构建、重开后最终端口为 `58572`，保持默认夜景。最终 boot graph 相册 rev 为 `cda954a17aaa`，服务 bundle 与仓库 SHA-256 同为 `65f3e9e6178aa4db63a709490eb6b41d178e943406e26a467aab5705c46b5660`。 |
 
 ## 兼容性结论
 

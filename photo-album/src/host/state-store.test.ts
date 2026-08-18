@@ -2,7 +2,7 @@ import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { AlbumStateStore, defaultAlbumStatePath } from './state-store.ts'
+import { AlbumStateStore, defaultAlbumImportsPath, defaultAlbumStatePath } from './state-store.ts'
 
 describe('AlbumStateStore', () => {
   it('stores directory and background choices atomically and supports reset', async () => {
@@ -26,5 +26,7 @@ describe('AlbumStateStore', () => {
       .toBe('/custom/dsh/storages/dsh-photo-album.json')
     expect(defaultAlbumStatePath({}, '/home/user'))
       .toBe('/home/user/.dsh/storages/dsh-photo-album.json')
+    expect(defaultAlbumImportsPath({ DSH_HOME: '/custom/dsh' }, '/home/user'))
+      .toBe('/custom/dsh/storages/dsh-photo-album/photos')
   })
 })

@@ -7,8 +7,10 @@ import { isImageFile, isPathInside, listImageFiles, mimeForFile, resolveInside }
 describe('isImageFile', () => {
   it('accepts the listed image extensions case-insensitively', () => {
     expect(isImageFile('a.JPG')).toBe(true)
-    expect(isImageFile('b.webp')).toBe(true)
-    expect(isImageFile('c.svg')).toBe(true)
+    expect(isImageFile('b.jpeg')).toBe(true)
+    expect(isImageFile('c.PNG')).toBe(true)
+    expect(isImageFile('d.webp')).toBe(true)
+    expect(isImageFile('e.svg')).toBe(true)
   })
 
   it('rejects non-image names and extensionless names', () => {
@@ -20,6 +22,8 @@ describe('isImageFile', () => {
 describe('mimeForFile', () => {
   it('maps known extensions and falls back to octet-stream', () => {
     expect(mimeForFile('x.png')).toBe('image/png')
+    expect(mimeForFile('x.jpg')).toBe('image/jpeg')
+    expect(mimeForFile('x.JPEG')).toBe('image/jpeg')
     expect(mimeForFile('x.svg')).toBe('image/svg+xml')
     expect(mimeForFile('x.unknown')).toBe('application/octet-stream')
   })

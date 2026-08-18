@@ -13,7 +13,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type { AlbumEnvelope, AlbumError } from '../core/types.ts'
 import { isLoopbackRequest } from './loopback.ts'
-import type { PhotoAlbumService } from './service.ts'
+import { MAX_IMPORTED_PHOTO_BYTES, type PhotoAlbumService } from './service.ts'
 
 const OK = <T>(value: T): AlbumEnvelope<T> => ({ ok: true, value })
 const FAIL = (error: AlbumError): AlbumEnvelope<never> => ({ ok: false, error })
@@ -91,6 +91,23 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
   return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown
 }
 
+/** Read one bounded raw image request body. */
+async function readImage(req: IncomingMessage): Promise<Buffer> {
+  const declared = Number(req.headers['content-length'] ?? 0)
+  if (Number.isFinite(declared) && declared > MAX_IMPORTED_PHOTO_BYTES) {
+    throw new Error('photo exceeds 25 MB limit')
+  }
+  const chunks: Buffer[] = []
+  let size = 0
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    size += buffer.length
+    if (size > MAX_IMPORTED_PHOTO_BYTES) throw new Error('photo exceeds 25 MB limit')
+    chunks.push(buffer)
+  }
+  return Buffer.concat(chunks)
+}
+
 /** Persist a background id (or null reset) and return the refreshed view. */
 async function setBackground(service: PhotoAlbumService, req: IncomingMessage, res: ServerResponse): Promise<void> {
   const body = await readJson(req)
@@ -127,6 +144,34 @@ async function setDirectory(service: PhotoAlbumService, req: IncomingMessage, re
     json(res, OK(await service.setPhotosDir(path)))
   } catch (error) {
     json(res, FAIL({ code: 'internal', message: error instanceof Error ? error.message : String(error) }), 500)
+  }
+}
+
+/** Import a directly selected PNG/JPEG and immediately use it as background. */
+async function importPhoto(service: PhotoAlbumService, req: IncomingMessage, url: URL, res: ServerResponse): Promise<void> {
+  const name = url.searchParams.get('name')
+  const contentType = req.headers['content-type']?.split(';', 1)[0]?.trim().toLowerCase()
+  if (name === null || name === '' || name.length > 255
+    || (contentType !== 'image/png' && contentType !== 'image/jpeg')) {
+    json(res, FAIL({ code: 'unsupported-format', message: 'choose a PNG or JPG/JPEG image' }), 415)
+    return
+  }
+  try {
+    const value = await service.importPhoto({ name, contentType, data: await readImage(req) })
+    json(res, OK(value))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    const status = message.includes('25 MB')
+      ? 413
+      : message.includes('valid PNG')
+        ? 415
+        : message.includes('empty')
+          ? 400
+          : 500
+    json(res, FAIL({
+      code: status === 413 ? 'too-large' : status === 415 ? 'unsupported-format' : status === 400 ? 'bad-request' : 'internal',
+      message,
+    }), status)
   }
 }
 
@@ -191,6 +236,15 @@ export function registerAlbumRoutes(ctx: Context, service: PhotoAlbumService): (
         return
       }
       void setDirectory(service, req, res).catch(() => json(res, FAIL(BAD_REQUEST), 400))
+      return
+    }
+    if (pathname === '/api/photo-album/import') {
+      if (method !== 'POST') {
+        res.writeHead(405)
+        res.end()
+        return
+      }
+      void importPhoto(service, req, url, res)
       return
     }
     res.writeHead(404)

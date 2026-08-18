@@ -11,9 +11,10 @@ A hot-pluggable DeepSeek Harness (DSH) Web/Desktop companion: it adds an **Album
 ## Features
 
 - **Sidebar entry**: injected under the New Session button (icon+label when wide, icon-only in the collapsed rail, theme-aware via `--dsw-*` tokens).
-- **Photo grid**: newest-first, `columns` per row, lazy-loaded images with filename on hover.
+- **Photo grid**: newest-first, `columns` per row, lazy-loaded images with filename on hover. PNG and JPG/JPEG are first-class formats alongside WebP, GIF, AVIF, BMP, and SVG.
 - **Lightbox**: click a photo to open; prev/next buttons or arrow keys, `Esc` or `×` to close; shows `current / total`.
 - **Persistent background**: grid cards and the lightbox expose **Use as background**; the header exposes **Restore default background**. Directory/background choices live in `DSH_HOME/storages/dsh-photo-album.json`, never port-scoped browser storage.
+- **Direct PNG/JPG picker**: **Choose PNG/JPG as background…** opens the operating-system file picker, copies the chosen raster into `DSH_HOME/storages/dsh-photo-album/photos/`, and applies it immediately. Limit: 25 MB per file.
 - **Two photo sources**:
   - `photosDir` configured → recursively scan it (jpg/png/gif/webp/svg/avif/bmp).
   - unset or unreadable → built-in samples, with a warning hint when the directory is missing/not a directory.
@@ -33,13 +34,17 @@ Restart `dsh web` after first registration. Quit and reopen packaged macOS DSH D
 
 ## Point it at your photos
 
+For one image, open **Album** and click **Choose PNG/JPG as background…**. Select a `.png`, `.jpg`, or `.jpeg`; it is copied into the plugin-managed local library and becomes the background immediately.
+
+For a whole folder:
+
 1. Open **Settings → Album**.
 2. Set **Photos directory** to your folder's absolute path (`~/` prefix allowed, e.g. `~/Pictures`).
 3. Enable **Scan subdirectories** if you want nested folders, and tune **Columns**.
 4. Save, then reopen the album entry — it rescans on every open.
 5. Choose **Use as background** from a card or the lightbox; use **Restore default background** to return to the bundled night scene.
 
-With no directory configured, the plugin shows six built-in samples under `assets/samples/`.
+With no directory configured, the plugin shows six built-in samples under `assets/samples/`, including real PNG and JPG files so raster support is visible immediately.
 
 ## Build
 
@@ -55,7 +60,7 @@ pnpm run build   # tsdown → lib/index.js (host) + lib/client.js (browser); tsc
 ## Privacy and safety
 
 - `/api/photo-album/*` is loopback-only, and user ids pass a path-traversal fence.
-- Photo bytes are never copied into this repository, uploaded, or stored in the browser. Only an opaque `sample/...` or `user/...` id is persisted.
+- A directly selected PNG/JPG is copied only into `DSH_HOME/storages/dsh-photo-album/photos/`; directory-mode sources are not copied. Nothing is uploaded, copied into this repository, or stored in browser storage.
 - The native directory picker and immediate background actions write the plugin-owned state file atomically; ordinary title/column/recursion fields continue to use the DSH settings surface where available.
 - Deleted photos, changed directories, unavailable routes, and malformed responses make the Yamada skin fall back to its bundled night scene.
 

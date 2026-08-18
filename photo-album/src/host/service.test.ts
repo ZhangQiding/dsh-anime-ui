@@ -56,6 +56,7 @@ describe('PhotoAlbumService background selection', () => {
     await mkdir(photosDir)
     await writeFile(join(samplesDir, 'sample.svg'), '<svg/>')
     await writeFile(join(photosDir, 'night.jpg'), 'fixture')
+    await writeFile(join(photosDir, 'morning.png'), 'fixture')
 
     const service = new PhotoAlbumService({
       getConfig: () => ({}),
@@ -66,12 +67,60 @@ describe('PhotoAlbumService background selection', () => {
     await expect(service.list()).resolves.toMatchObject({
       source: 'directory',
       directory: photosDir,
-      photos: [{ id: 'user/night.jpg' }],
+      photos: expect.arrayContaining([
+        expect.objectContaining({ id: 'user/night.jpg' }),
+        expect.objectContaining({ id: 'user/morning.png' }),
+      ]),
     })
     await expect(service.resolveMedia('user/night.jpg')).resolves.toMatchObject({
       ok: true,
       abs: join(photosDir, 'night.jpg'),
       mime: 'image/jpeg',
     })
+    await expect(service.resolveMedia('user/morning.png')).resolves.toMatchObject({
+      ok: true,
+      abs: join(photosDir, 'morning.png'),
+      mime: 'image/png',
+    })
+  })
+
+  it('imports browser-selected PNG and JPEG files into the managed library', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-album-import-'))
+    const samplesDir = join(root, 'samples')
+    const importsDir = join(root, 'imports')
+    const statePath = join(root, 'state.json')
+    await mkdir(samplesDir)
+    const service = new PhotoAlbumService({
+      getConfig: () => ({}),
+      samplesDir,
+      importsDir,
+      stateStore: new AlbumStateStore(statePath),
+    })
+
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00])
+    await expect(service.importPhoto({ name: '壁纸.PNG', contentType: 'image/png', data: png }))
+      .resolves.toMatchObject({
+        source: 'directory',
+        backgroundPhotoId: 'user/壁纸.png',
+        photos: [expect.objectContaining({ id: 'user/壁纸.png' })],
+      })
+
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00])
+    await expect(service.importPhoto({ name: 'photo.jpg', contentType: 'image/jpeg', data: jpeg }))
+      .resolves.toMatchObject({
+        backgroundPhotoId: 'user/photo.jpg',
+        photos: expect.arrayContaining([expect.objectContaining({ id: 'user/photo.jpg' })]),
+      })
+    await expect(service.resolveMedia('user/photo.jpg')).resolves.toMatchObject({ mime: 'image/jpeg' })
+    await expect(service.importPhoto({
+      name: 'fake.png',
+      contentType: 'image/png',
+      data: Buffer.from('not a png'),
+    })).rejects.toThrow('only valid PNG and JPG/JPEG files can be imported')
+    await expect(service.importPhoto({
+      name: 'empty.jpg',
+      contentType: 'image/jpeg',
+      data: Buffer.alloc(0),
+    })).rejects.toThrow('photo is empty')
   })
 })
