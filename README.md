@@ -1,10 +1,20 @@
-# dsh-yamada-night-shift · 山田的夜班
+# 🌙 Yamada Night Shift · 山田的夜班
 
-一个面向 [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 的夜间动漫风 UI 插件组合：保留 DSH 原生会话、文件、设置、工具和模型交互，只替换展示层，并可选安装一个本地相册伴侣，让 PNG/JPG 图片成为持久背景。
+给 [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 换上一套真正可用的夜间动漫工作台：山田凉主题、macOS DSH Desktop / DSH Web、本地相册和 PNG/JPG 持久背景。
 
 > Night-only presentation skin for DSH Web and macOS DSH Desktop, plus an optional local photo-album companion. The plugins are presentation-only: they do not inject model services, upload photos, or replace native DSH behavior.
 
 结构参考 [Small-tailqwq/dsh-deep-whale](https://github.com/Small-tailqwq/dsh-deep-whale)：先看效果，再按目标平台安装；皮肤和相册保持为两个可独立启用、卸载即恢复的包。
+
+> ⭐ 喜欢这套 UI，欢迎点 Star；安装遇到问题，请带上 DSH 版本、profile 和截图开 Issue。
+
+### 让 DSH 帮你安装（推荐）
+
+把下面这句话直接发给你的 DSH：
+
+> 安装这个 UI 插件：<https://github.com/ZhangQiding/dsh-anime-ui>
+
+如果你习惯终端，下面的手动安装只需 30 秒。
 
 ## 效果预览 / Preview
 

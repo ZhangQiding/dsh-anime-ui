@@ -1,0 +1,45 @@
+name: Quality
+
+on:
+  push:
+    branches: [main, agent/publish-dsh-anime-ui]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: yamada-night-shift/package-lock.json
+
+      - name: Build and test skin
+        working-directory: yamada-night-shift
+        run: |
+          npm ci
+          npm run build
+          npm test
+          npm pack --dry-run
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install album dependencies
+        working-directory: photo-album
+        run: pnpm install --frozen-lockfile
+
+      - name: Check and test album
+        working-directory: photo-album
+        run: |
+          pnpm run typecheck
+          pnpm run test
+          pnpm run build
