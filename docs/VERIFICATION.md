@@ -19,7 +19,7 @@
 | Desktop 卸载还原 | 再次实际 remove 后，真实退出并重开 DSH Desktop；窗口标题为 `DeepSeek Harness`，原生背景恢复且无山田人物/头像/颜色。相同 Desktop profile 的 DOM 核验中，`data-dsh-yamada-night-shift`、全部 `data-yamada-*`、owned DOM、人物、favicon、style 和 body 背景均为 0/空。证据图：`docs/verification/native-restore.webp`。随后已重新 add、再次重开并恢复“山田的夜班”最终界面。 |
 | Desktop 视觉 | 真实 DSH Desktop 已检查欢迎页全身构图和活跃对话约 `56vh` 构图；截图在 `yamada-night-shift/preview/dark.webp` 与 `chat.webp`。原生侧栏、会话、composer 和文件面板保持可用。 |
 | Desktop 响应式构图 | 同一 Desktop 本地服务的真实 DOM 计算：1280×720 欢迎页人物 655.2px（91vh、opacity 0.96）；活跃对话人物 403.2px（56vh、opacity 0.76、`pointer-events: none`），owned DOM 稳定为 7。 |
-| Desktop 最终安装状态 | 发布收尾时发现旧测试窗口仍持有内存状态、磁盘 `desktop` profile 已不在原位；未沿用该弱证据。随后使用 Desktop 官方内置 CLI 重新初始化 `~/.dsh/profiles/desktop` 并执行本地链接安装。`package.json` 仅加入山田皮肤，symlink 指向当前仓库，`--dump-config` 包含启用的 `ui-skin-yamada-night-shift`。真实退出并重新打开后服务端口由 `53828` 变为 `55124`，窗口仍显示山田标题、欢迎页全身人物；打开既有会话后人物缩至右下安全区。 |
+| Desktop 最终安装状态 | 发布收尾时发现旧测试窗口仍持有内存状态、磁盘 `desktop` profile 已不在原位；未沿用该弱证据。随后使用 Desktop 官方内置 CLI 重新初始化 `~/.dsh/profiles/desktop` 并执行本地链接安装。`package.json` 仅加入山田皮肤，symlink 指向当前仓库，`--dump-config` 包含启用的 `ui-skin-yamada-night-shift`。真实退出并重新打开后服务端口由 `53828` 变为 `55124`，窗口仍显示山田标题、欢迎页全身人物；打开既有会话后人物缩至右下安全区。新进程的实际 `window.__DSH_BOOT__.entries` 包含 `@dsh-external/dsh-client-ui-skin-yamada-night-shift`，HTTP 提供的 bundle 与仓库文件 SHA-256 同为 `0099df1e278b8b88aaf8ca4fbfce773ff2432fc32f5526741ef092a0cd3ead0d`。 |
 
 ## 兼容性结论
 
