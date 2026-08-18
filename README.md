@@ -16,6 +16,8 @@
 
 如果你习惯终端，下面的手动安装只需 30 秒。
 
+当前公开标签：[v0.1.0](https://github.com/ZhangQiding/dsh-anime-ui/tree/v0.1.0)。
+
 ## 效果预览 / Preview
 
 | 欢迎页 / Welcome | 对话页 / Conversation | 相册背景 / Album background |
