@@ -129,6 +129,8 @@ assets/              最终母版与从“考试”项目迁移的历史图片
 pic/                 用户提供的参考图（原文件名保留）
 ```
 
+可直接复制的中文 / English 宣传文案见 [`docs/SHARE.md`](docs/SHARE.md)。
+
 ## 兼容性 / Compatibility
 
 - DSH Web：桌面宽屏和窄屏响应式布局；安装后刷新页面。
